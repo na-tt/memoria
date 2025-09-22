@@ -1,16 +1,29 @@
-\documentclass{report}
+\documentclass[letterpaper, 11pt]{report}
 
 \usepackage{fontspec}    
 \usepackage{polyglossia}
 \setdefaultlanguage{spanish}
+\usepackage[backend=biber]{biblatex}
 
-\title{Memoria}
-\author{Benjamín Panatt}
-\date{\today}
+\usepackage{graphicx}
+\usepackage{float}
 
 
 \begin{document}
 
-\maketitle
+\include{chapters/portada}
+\include{chapters/agradecimientos}
+\include{chapters/dedicatoria}
+\include{chapters/resumen}
+\include{chapters/abstract}
+\include{chapters/glosario}
+\include{chapters/indice}
+\include{chapters/introduccion}
+\include{chapters/desarrollo}
+\include{chapters/conclusiones}
+\include{chapters/referencias}
+\include{chapters/anexos}
+
+
 
 \end{document}
