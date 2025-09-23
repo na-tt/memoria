@@ -3,7 +3,11 @@
 \usepackage{fontspec}    
 \usepackage{polyglossia}
 \setdefaultlanguage{spanish}
-\usepackage[backend=biber]{biblatex}
+
+\usepackage[backend=biber, style=numeric]{biblatex}
+\addbibresource{referencias.bib}
+\nocite{*}
+
 
 \usepackage{graphicx}
 \usepackage{float}
@@ -21,7 +25,7 @@
 \include{chapters/introduccion}
 \include{chapters/desarrollo}
 \include{chapters/conclusiones}
-\include{chapters/referencias}
+\printbibliography
 \include{chapters/anexos}
 
 
