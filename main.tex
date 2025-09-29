@@ -8,6 +8,10 @@
 \addbibresource{referencias.bib}
 \nocite{*}
 
+\usepackage{glossaries}
+\makeglossaries
+\input{glosario.tex}
+
 
 \usepackage{graphicx}
 \usepackage{float}
@@ -20,10 +24,13 @@
 \include{chapters/dedicatoria}
 \include{chapters/resumen}
 \include{chapters/abstract}
-\include{chapters/glosario}
+
+\glsaddall
+\printglossaries
+
 \include{chapters/indice}
 \include{chapters/introduccion}
-\include{chapters/desarrollo}
+\input{chapters/desarrollo}
 \include{chapters/conclusiones}
 \printbibliography
 \include{chapters/anexos}
