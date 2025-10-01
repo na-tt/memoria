@@ -1,2 +1,28 @@
 \chapter*{Resumen}
-Este es el resumen.
+Robot Operating System 2 es un conjunto de bibliotecas de software y herramientas para construir soluciones de robótica.
+Se basa en una arquitectura modular y conducida por eventos mediante el desarrollo de nodos 
+que son interconectados mediante mecanismos de comunicación al tiempo de ejecución.
+
+Los principios de diseño de ROS 2 son de especial beneficio para el diseño y escalado de sistemas complejos
+donde multiples subsistemas conforman una solución y existen relaciones de dependencias no lineales entre ellos,
+como es común de observar en el campo de la robotica, con entradas simultaneas desde varios sensores,
+procesamiento en varios subsistemas tales como sistemas de visión por computador, planificación de caminos, cinematica inversa y control, 
+multiples salidas desde actuaciones de sistemas electricos hasta comunicación con servidores u otros robots.
+
+Sí bien hay una serie de ventajas al usar ROS 2, un aspecto poco explorado es el
+impacto que tiene su uso en el rendimiento de aplicaciones. Al desarrollar una aplicación
+modular con ROS 2 se esta haciendo uso implicito de un middleware de comunicaciónes llamado Data Distribution Service
+o DDS, que se encarga de facilitar los mecanismos de comunicación interproceso, comparado a una aplicación uniproceso
+los datos que un nodo envia a otro deben pasar por una pila completa de comunicación, lo cual alza 
+preocupación sobre la degradación del rendimiento debido a un uso mayor de recursos computaciones para
+implementar estos mecanismos, así como tambien una reducción en metricas clave como latencia y thoughput como consecuencia de ello.
+
+En este trabajo se busca caracterizar el impacto sobre el rendimiento de una aplicación al usar ROS 2, 
+para este fin se diseña e implementa una aplicación de visión por computador representativa de sistemas
+usados en la industria, en una versión monolitica sin ROS 2 y una versión modular con ROS 2 sobre las cuales se 
+realizaran pruebas de rendimiento.
+
+Para las pruebas de rendimiento se prepara una metodologia de medición basada en herramientas de monitoreo de sistema e instrumentación de software,
+y se monitorea el rendimiento de ambas versiones de la aplicación corriendo sobre una plataforma de hardware Nvidia Jetson y
+posteriormente se analizan los resultados para evaluar el impacto del uso de ROS 2 sobre el rendimiento de la aplicación.
+
