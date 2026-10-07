@@ -1,0 +1,427 @@
+% capitulo-3.tex
+% Capítulo 3 — Metodología
+%
+% This chapter describes the planned experimental methodology. Citations
+% use the citation keys of the project Zotero library (exported to
+% references.bib). Items that depend on decisions not yet finalized
+% (hardware details, software versions, model selection, resolutions,
+% durations, repetitions) are marked with visible \todo{...} placeholders
+% to be completed once determined; % TODO comments mark citation gaps. No
+% experimental results are reported in this chapter.
+
+\providecommand{\todo}[1]{\textbf{[TODO: #1]}}
+
+\chapter{Metodología}
+\label{chap:methodology}
+
+\section{Plataforma experimental}
+\label{sec:platform}
+
+La plataforma experimental principal es una NVIDIA Jetson Orin Nano,
+elegida como módulo embebido representativo para la visión por computador
+en el borde \cite{scalcon2024, alqahtani2026}. Las siguientes
+características del dispositivo se registran y se mantienen constantes a lo
+largo de los experimentos:
+
+\begin{itemize}
+  \item Módulo/modelo de Jetson: \todo{SPECIFY: exact module and developer
+        kit version}
+  \item Capacidad de RAM: \todo{SPECIFY}
+  \item Almacenamiento: \todo{SPECIFY}
+  \item Modo de energía: \todo{SPECIFY: fixed power mode for all
+        experiments. Published Orin-family evaluations distinguish power
+        modes when reporting frame rates \cite{scalcon2024}, so this
+        setting is part of the documented experimental condition.}
+  \item Configuración de enfriamiento: \todo{SPECIFY. Sustained inference
+        load raises device temperature \cite{zequn2026}, so cooling is
+        fixed and documented.}
+  \item Cámara / dispositivo de entrada conectado: \todo{SPECIFY}
+  \item Temperatura de operación, donde corresponda: \todo{SPECIFY: how
+        thermal conditions are monitored}
+\end{itemize}
+
+Todos los experimentos se ejecutan en este único dispositivo, con los nodos
+de las configuraciones de ROS~2 ejecutándose como procesos separados del
+sistema operativo en el mismo anfitrión. Ejecutar todos los procesos en un
+dispositivo aísla el efecto de la propia arquitectura de ROS~2 de los
+efectos de red, que están fuera del alcance de esta tesis.
+
+\section{Entorno de software}
+\label{sec:software-environment}
+
+El entorno de software completo se documenta y se mantiene constante:
+
+\begin{itemize}
+  \item Sistema operativo: \todo{SPECIFY: Linux distribution and version}
+  \item Versión de JetPack: \todo{SPECIFY}
+  \item Distribución de ROS~2: \todo{SPECIFY: one distribution, fixed for
+        all experiments}
+  \item Implementación de DDS: \todo{SPECIFY: one implementation, fixed
+        for all experiments, selected through the rmw layer}
+  \item Configuración de QoS: \todo{SPECIFY: one fixed configuration,
+        stated explicitly, including reliability, durability, and history
+        policies. QoS settings measurably affect latency
+        \cite{fernandez2020, kronauer2021} and must therefore be part of
+        the documented experimental condition.}
+  \item Versión de Python: \todo{SPECIFY}
+  \item Versiones de paquetes (entorno de ejecución de inferencia,
+        bibliotecas de imágenes, herramientas de monitoreo): \todo{SPECIFY}
+\end{itemize}
+
+Para los experimentos principales se utiliza un despliegue sin
+contenedores. Las decisiones anteriores se tratan como condiciones
+experimentales controladas y no como variables bajo investigación; cada una
+se documenta de modo que los experimentos puedan reproducirse
+(Sección~\ref{sec:reproducibility}).
+
+\section{Cadena de procesamiento de visión por computador}
+\label{sec:pipeline}
+
+La carga de trabajo es una cadena de procesamiento de detección de objetos
+que consiste en las siguientes etapas lógicas:
+
+\begin{enumerate}
+  \item \textbf{Adquisición de imágenes:} obtener cada fotograma de
+        entrada.
+  \item \textbf{Preprocesamiento:} convertir el fotograma al formato
+        esperado por el modelo (p. ej., redimensionamiento, conversión de
+        color, normalización y disposición del tensor). Esta etapa es
+        individualmente significativa: para la detección de objetos, el
+        preprocesamiento contribuye una porción sustancial del tiempo de
+        ejecución total, especialmente a resoluciones más altas
+        \cite{szegedi2026}.
+  \item \textbf{Inferencia:} ejecutar el modelo de red neuronal.
+  \item \textbf{Postprocesamiento:} convertir la salida sin procesar del
+        modelo en resultados a nivel de aplicación (p. ej., cuadros
+        delimitadores, filtrado por confianza, supresión de no máximos). Al
+        igual que el preprocesamiento, esta etapa no es despreciable para
+        la detección de objetos \cite{szegedi2026}.
+  \item \textbf{Salida:} producir el resultado final de la cadena de
+        procesamiento.
+\end{enumerate}
+
+El modelo de red neuronal se selecciona de acuerdo con los criterios de la
+Sección~\ref{sec:workload}, sobre la base de evidencia publicada de que la
+detección de objetos en tiempo real es factible en la Orin Nano con las
+familias estándar de detectores de una etapa \cite{scalcon2024,
+alqahtani2026, szegedi2026,zequn2026}:
+\todo{SPECIFY: final model, weights version, precision, and inference
+runtime once selected.} El mismo modelo y la misma configuración de
+inferencia se utilizan en cada configuración experimental.
+
+\section{Implementación monolítica}
+\label{sec:monolithic}
+
+La implementación de línea base ejecuta la cadena de procesamiento completa
+dentro de un único proceso de Python:
+
+\begin{quote}
+\texttt{Entrada $\rightarrow$ Preprocesamiento $\rightarrow$ Inferencia
+$\rightarrow$ Postprocesamiento $\rightarrow$ Salida}
+\end{quote}
+
+Todas las etapas se ejecutan secuencialmente dentro de un proceso. Los datos
+pasan entre las etapas como estructuras de datos en memoria, sin
+serialización ni transporte entre procesos. Esta implementación sirve como
+línea base de rendimiento contra la cual se comparan las implementaciones de
+ROS~2. Corresponde al extremo arquitectónico en el que la aplicación
+aprovecha plenamente el hecho de que todos los datos de la cadena pueden
+permanecer en un único espacio de direcciones.
+
+\section{Implementación en ROS 2}
+\label{sec:ros2-implementation}
+
+Las mismas etapas lógicas se implementan como nodos de ROS~2 utilizando
+rclpy, cada uno ejecutándose como un proceso separado del sistema operativo
+en el mismo anfitrión, conectados en cadena mediante tópicos que
+transportan mensajes de imagen:
+
+\begin{quote}
+\texttt{Nodo A $\rightarrow$ Nodo B $\rightarrow$ Nodo C $\rightarrow$
+Nodo D}
+\end{quote}
+
+Cada nodo publica y se suscribe con la configuración de QoS fija, y la
+configuración del ejecutor es igualmente fija e idéntica entre los nodos,
+dado que el ejecutor es inseparable del rendimiento del nodo
+\cite{macenski2023, casini2026}. El mapeo de las etapas de procesamiento a
+nodos preserva la equivalencia funcional con la implementación monolítica:
+dada la misma secuencia de entrada y el mismo modelo, ambas implementaciones
+producen salidas equivalentes.
+\todo{SPECIFY: the exact stage-to-node mapping for each configuration once
+finalized, the executor type used, and how functional equivalence is
+verified (e.g., comparing outputs on a fixed input sequence).}
+
+Esta implementación corresponde a la manera ordinaria y recomendada por
+omisión de estructurar una aplicación de ROS~2 como nodos separados
+\cite{macenski2022}, antes de que se aplique cualquiera de las mitigaciones
+descritas en la literatura relacionada---composición, comunicación
+intraproceso o transporte por memoria compartida \cite{macenski2023,
+kamiya2025}---. Estudiar esta línea base de forma aislada es deliberado:
+mide la arquitectura que una adopción directa de ROS~2 produce.
+
+\section{Configuraciones experimentales}
+\label{sec:configurations}
+
+Se utiliza un número reducido de configuraciones, elegidas de modo que
+representen diferencias arquitectónicas significativas y no divisiones
+arbitrarias de la cadena de procesamiento:
+
+\begin{itemize}
+  \item \textbf{Configuración A --- Monolítica:} un proceso de Python.
+  \item \textbf{Configuración B --- Particionamiento bajo:} dos nodos de
+        ROS~2.
+  \item \textbf{Configuración C --- Particionamiento mayor:} cuatro nodos
+        de ROS~2.
+\end{itemize}
+
+\todo{SPECIFY: the exact node boundaries for Configurations B and C, and
+the justification that they represent meaningful architectural
+differences.}
+
+La matriz experimental principal cruza las tres configuraciones
+arquitectónicas con tres resoluciones de entrada. La resolución se incluye
+como dimensión secundaria porque ambos términos del compromiso bajo estudio
+escalan con ella: el costo de la inferencia crece con la resolución de
+entrada \cite{szegedi2026}, y también el costo de comunicación de los
+propios mensajes de imagen, dado que los costos de serialización y copia
+por mensaje crecen con el tamaño de la carga útil \cite{kronauer2021,
+macenski2022, luo2025}. Las resoluciones se seleccionan según las
+capacidades de la fuente de entrada y del modelo elegidos:
+
+\begin{itemize}
+  \item Resolución 1: \todo{SPECIFY (candidate: 320$\times$240)}
+  \item Resolución 2: \todo{SPECIFY (candidate: 640$\times$480)}
+  \item Resolución 3: \todo{SPECIFY (candidate: 1280$\times$720)}
+\end{itemize}
+
+Esto da como resultado $3 \times 3 = 9$ condiciones experimentales:
+
+% NOTE: requires \usepackage{amssymb} in the preamble for \checkmark.
+\begin{table}[htbp]
+  \centering
+  \caption{Matriz experimental principal.}
+  \label{tab:experimental-matrix}
+  \begin{tabular}{clcccc}
+    \hline
+    \textbf{Config.} & \textbf{Arquitectura} & \textbf{Particionamiento} &
+    \textbf{Res.\ 1} & \textbf{Res.\ 2} & \textbf{Res.\ 3} \\
+    \hline
+    A & Proceso único & 1 proceso & \checkmark & \checkmark & \checkmark \\
+    B & ROS 2          & 2 nodos   & \checkmark & \checkmark & \checkmark \\
+    C & ROS 2          & 4 nodos   & \checkmark & \checkmark & \checkmark \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Cada condición se repite múltiples veces, o se ejecuta por una duración fija
+suficientemente larga, para obtener mediciones estables.
+\todo{SPECIFY: number of repetitions and run duration per condition.}
+
+\section{Procedimiento de evaluación comparativa de rendimiento}
+\label{sec:procedure}
+
+Cada condición experimental sigue el mismo procedimiento:
+
+\begin{enumerate}
+  \item \textbf{Inicializar el sistema.} Iniciar la aplicación y todas las
+        herramientas de monitoreo.
+  \item \textbf{Calentamiento.} Descartar una cantidad inicial de
+        fotogramas o un período fijo de calentamiento para evitar medir el
+        comportamiento de inicio: los costos de la primera solicitud, como
+        la carga del modelo y la asignación de memoria, no reflejan la
+        operación en estado estacionario.
+        \todo{SPECIFY: warm-up duration or frame count.}
+  \item \textbf{Ejecutar la carga de trabajo.} Ejecutar la cadena de
+        procesamiento durante una duración fija o una cantidad fija de
+        fotogramas.
+        \todo{SPECIFY.}
+  \item \textbf{Registrar las mediciones.} Recopilar la latencia de extremo
+        a extremo, FPS, la utilización de CPU, RAM y GPU, y el consumo de
+        energía si se mide.
+  \item \textbf{Repetir.} Repetir el experimento lo suficiente para
+        caracterizar la variabilidad.
+  \item \textbf{Reiniciar.} Devolver el sistema al mismo estado de
+        referencia antes de la siguiente condición experimental.
+        \todo{SPECIFY: the reset procedure (e.g., stopping all nodes,
+        cooling interval).}
+\end{enumerate}
+
+A lo largo de las mediciones, el sistema se mantiene en un estado
+controlado: se aplica el modo de energía fijo y se minimiza la carga en
+segundo plano. Esto sigue la práctica de la literatura de medición de
+ROS~2, donde el comportamiento adaptativo del sistema operativo---el
+escalado de frecuencia de la CPU y los estados de inactividad--- se
+neutraliza explícitamente porque agrega ruido a las mediciones de latencia
+\cite{kronauer2021}.
+
+Los experimentos piloto preceden a los experimentos finales con el fin de
+identificar problemas de medición, cuellos de botella inesperados,
+supuestos incorrectos y errores de configuración. El propósito de las
+ejecuciones piloto es fijar la metodología, no generar resultados finales.
+
+\section{Medición de las métricas de rendimiento}
+\label{sec:metric-measurement}
+
+\subsection{Latencia de extremo a extremo}
+
+La latencia se mide por fotograma como el tiempo transcurrido entre la
+entrada del fotograma a la primera etapa de la cadena y la disponibilidad de
+su salida completamente postprocesada. Las marcas de tiempo se toman en
+puntos equivalentes en todas las configuraciones---equivalentes a las
+fronteras de la cadena como un todo, no de las etapas internas
+individuales--- de modo que las mediciones sean comparables entre
+arquitecturas. Esto refleja la perspectiva de extremo a extremo de las
+evaluaciones de latencia de ROS~2 a nivel de aplicación \cite{betz2023a} y
+la metodología de marcas de tiempo en fronteras utilizada para el análisis
+de comunicación resuelto por capa \cite{kamiya2025}.
+\todo{SPECIFY: timestamping mechanism (e.g., monotonic clocks) and, for
+the ROS 2 configurations, how the timestamps of the first and final nodes
+are related on the same host.} Estadísticas informadas: media, mediana,
+desviación estándar, mínimo, máximo, P95 y P99 cuando haya muestras
+suficientes, siguiendo la práctica de informe de percentiles de la literatura
+de evaluación comparativa de rendimiento de ROS~2 \cite{kronauer2021,
+macenski2022}.
+
+\subsection{Tasa de procesamiento}
+
+La tasa de procesamiento se mide en fotogramas por segundo sobre el
+intervalo de medición en estado estacionario, tras eliminar el calentamiento:
+
+\begin{equation}
+  \mathrm{FPS} = \frac{\text{fotogramas procesados}}{\text{tiempo
+  transcurrido}}
+  \label{eq:fps}
+\end{equation}
+
+\subsection{Utilización de CPU}
+
+La utilización promedio y máxima de la CPU se mide durante el intervalo de
+medición utilizando herramientas de monitoreo del sistema.
+\todo{SPECIFY: tool and sampling interval (e.g., \texttt{tegrastats} or
+equivalent).}
+
+\subsection{Utilización de memoria}
+
+La utilización de la RAM del sistema se mide durante el intervalo de
+medición; el uso de memoria de GPU se registra si se dispone de una medición
+confiable.
+\todo{SPECIFY: tool.}
+
+\subsection{Utilización de GPU}
+
+La utilización de GPU se registra para determinar si el sobrecosto
+arquitectónico cambia la utilización del recurso de cómputo principal.
+\todo{SPECIFY: tool.}
+
+\subsection{Consumo de energía (opcional)}
+
+Si se dispone de una medición confiable: potencia promedio, potencia
+máxima, energía por fotograma procesado y rendimiento por vatio, siguiendo
+la práctica de métricas de potencia de los estudios de caracterización de la
+Orin Nano \cite{zequn2026}.
+\todo{SPECIFY: measurement method, or state that power measurement was
+excluded. Power measurement is an optional extension and must not
+threaten completion of the thesis.}
+
+\section{Análisis de datos}
+\label{sec:analysis}
+
+Para cada condición experimental, el análisis procede de la siguiente
+manera:
+
+\begin{enumerate}
+  \item Eliminar las mediciones de inicio y de calentamiento.
+  \item Calcular estadísticas descriptivas de la latencia, la tasa de
+        procesamiento y la utilización de recursos.
+  \item Comparar las distribuciones de latencia entre configuraciones.
+  \item Comparar la tasa de procesamiento y la utilización de recursos
+        entre configuraciones.
+  \item Calcular las diferencias porcentuales entre configuraciones,
+        incluido el sobrecosto relativo de cada configuración de ROS~2 con
+        respecto a la línea base monolítica:
+        \begin{equation}
+          \mathrm{sobrecosto}\ (\%) = \frac{L_{\mathrm{ROS}} -
+          L_{\mathrm{mono}}}{L_{\mathrm{mono}}} \times 100
+          \label{eq:overhead}
+        \end{equation}
+        donde $L$ denota la métrica bajo comparación (p. ej., la latencia
+        media de extremo a extremo).
+  \item Investigar si el aumento del particionamiento de nodos produce una
+        tendencia consistente a través de las resoluciones.
+\end{enumerate}
+
+Donde corresponda, las pruebas estadísticas se seleccionan tras examinar los
+datos recopilados y su distribución.
+\todo{SPECIFY: tests to be applied once the data distribution is known.}
+
+El análisis evalúa las siguientes hipótesis, enunciadas aquí como
+predicciones y no como expectativas que deban confirmarse; los resultados
+que contradigan una o más hipótesis siguen siendo válidos y se analizarán
+como tales:
+
+% NOTE: The thesis plan lists the hypotheses in the proposal but does not
+% assign them a dedicated section in the chapter structure; they are
+% placed here because the analysis evaluates them. Move if a better
+% location is chosen.
+\begin{description}
+  \item[H1 (Latencia):] Las implementaciones de ROS~2 exhibirán una mayor
+        latencia de extremo a extremo que la implementación monolítica
+        debido al sobrecosto de comunicación y procesamiento introducido
+        entre los nodos.
+  \item[H2 (Tasa de procesamiento):] La implementación monolítica
+        alcanzará una tasa de procesamiento igual o mayor que las
+        implementaciones de ROS~2 bajo condiciones computacionales
+        equivalentes.
+  \item[H3 (Utilización de recursos):] Las implementaciones de ROS~2
+        requerirán recursos adicionales de CPU y memoria en comparación
+        con la implementación monolítica.
+  \item[H4 (Particionamiento):] El aumento del número de fronteras de
+        comunicación de ROS~2 incrementará el sobrecosto de comunicación
+        y, por lo tanto, la latencia de extremo a extremo.
+\end{description}
+
+Estas predicciones se fundamentan en la literatura relacionada: el
+sobrecosto de comunicación entre procesos se ha medido repetidamente
+\cite{kronauer2021, macenski2022, kamiya2025}, y las mitigaciones que
+reducen la cantidad de fronteras de proceso recuperan recursos sustanciales
+\cite{macenski2023}. Las hipótesis requieren, sin embargo, verificación
+experimental para esta carga de trabajo, plataforma y biblioteca cliente,
+dado que la magnitud del sobrecosto en relación con el cómputo dominante de
+la inferencia es exactamente lo que los estudios previos no aíslan.
+
+\section{Reproducibilidad}
+\label{sec:reproducibility}
+
+La siguiente información se documenta de modo que los experimentos puedan
+reproducirse, en línea con el llamado de la comunidad a una evaluación
+comparativa de rendimiento robótica estandarizada y reproducible
+\cite{mayoral-vilches2024}:
+
+\begin{itemize}
+  \item Modelo y configuración de hardware
+  \item Versión de JetPack
+  \item Distribución de Linux
+  \item Distribución de ROS~2
+  \item Implementación de DDS
+  \item Versión de Python
+  \item Versiones de paquetes
+  \item Versión del modelo y pesos
+  \item Configuración y precisión del modelo
+  \item Resolución de entrada por experimento
+  \item Configuración de QoS de ROS~2
+  \item Modo de energía
+  \item Configuración de CPU/GPU
+  \item Condiciones ambientales y del entorno, donde corresponda
+  \item Duración del benchmark
+  \item Cantidad de repeticiones
+  \item Procedimiento de calentamiento
+\end{itemize}
+
+Registrar la configuración completa de software y hardware no es meramente
+administrativo: las evaluaciones de latencia de sistemas ROS~2 han mostrado
+que los resultados dependen de la configuración de software y hardware de
+maneras no obvias \cite{betz2023a, kronauer2021}. El código fuente y la
+configuración del benchmark están bajo control de versiones. Cualquier
+desviación de la metodología planificada que se observe durante los
+experimentos finales se registra y se informa.

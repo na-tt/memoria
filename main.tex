@@ -8,6 +8,8 @@
 \addbibresource{referencias.bib}
 \nocite{*}
 
+\usepackage[hidelinks]{hyperref}
+
 \usepackage{glossaries}
 \makeglossaries
 \input{glosario.tex}
@@ -15,25 +17,28 @@
 
 \usepackage{graphicx}
 \usepackage{float}
-
+\usepackage{amssymb}
+\usepackage{datetime2} % for debug purposes only remove on final release
 
 \begin{document}
 
-\include{chapters/portada}
-\include{chapters/agradecimientos}
-\include{chapters/dedicatoria}
-\include{chapters/resumen}
-\include{chapters/abstract}
+\include{sections/portada}
+%\include{sections/agradecimientos}
+%\include{sections/dedicatoria}
+\include{sections/resumen}
+\include{sections/abstract}
 
 \glsaddall
 \printglossaries
 
-\include{chapters/indice}
-\include{chapters/introduccion}
-\input{chapters/desarrollo}
-\include{chapters/conclusiones}
+\include{sections/indice}
+\include{sections/introduccion}
+\include{sections/body/chapter-1}
+\include{sections/body/chapter-2}
+\include{sections/body/chapter-3}
+\include{sections/conclusiones}
 \printbibliography
-\include{chapters/anexos}
+\include{sections/anexos}
 
 
 

@@ -1,0 +1,402 @@
+% capitulo-1.tex
+% Capítulo 1 — Introducción
+%
+% Citations use the citation keys of the project Zotero library; the
+% corresponding entries were exported to references.bib. Claims that would
+% require a source not currently available in the library are marked with
+% % TODO comments and should be resolved before submission.
+
+\chapter{Introducción}
+\label{chap:introduction}
+
+\section{Antecedentes}
+\label{sec:background}
+
+Los sistemas robóticos y autónomos modernos dependen cada vez más de la visión
+por computador para percibir e interpretar su entorno. Tareas como la
+detección, la clasificación y el seguimiento de objetos están dominadas por
+las redes neuronales profundas y son computacionalmente demandantes; en
+muchas aplicaciones deben ejecutarse de manera continua, en tiempo real o
+casi tiempo real, sobre hardware ubicado a bordo del propio robot. La
+proliferación de dispositivos móviles y de internet de las cosas ha
+desplazado la producción de datos hacia el borde de la red, creando presión
+por ejecutar cargas de trabajo de inteligencia artificial junto a los
+sensores que generan los datos, en lugar de en centros de datos remotos---un
+paradigma consolidado bajo el término de inteligencia en el borde
+(\emph{edge intelligence}) \cite{zhou2019, deng2020}. El aprendizaje profundo
+en el borde (\emph{edge deep learning}) integra estrechamente recursos
+computacionales y fuentes de datos, lo que posibilita la toma de decisiones
+en tiempo real en sintonía con el entorno \cite{xu2025}. Delegar la
+percepción a servidores remotos suele ser impracticable debido a las
+restricciones de latencia, ancho de banda y conectividad y, en algunas
+aplicaciones, a consideraciones de privacidad de los datos.
+% TODO: the privacy motivation is not explicitly stated in the sources
+% currently available in the library; find a dedicated source or remove
+% the clause.
+Como consecuencia, las cargas de trabajo de visión por computador comúnmente
+se ejecutan en plataformas de computación embebidas que deben equilibrar la
+capacidad computacional con presupuestos estrictos de energía, térmicos y de
+costo \cite{zhou2019, xu2025}. El rango de aplicaciones es amplio y
+creciente: drones autónomos para el monitoreo de vida silvestre
+\cite{lundquist2026}, detección de defectos en el borde en la agricultura y
+la industria \cite{muchtar2025, machado2025}, servicios de ciudades
+inteligentes \cite{woo2025} y análisis de imágenes médicas \cite{aalishah2025}.
+
+Entre las plataformas embebidas, la familia NVIDIA Jetson es representativa
+de los recursos de computación disponibles para robots y sistemas de
+inteligencia artificial en el borde. Estos módulos integran núcleos de CPU
+Arm con aceleradores de GPU de NVIDIA en un factor de forma eficiente en
+energía y se utilizan ampliamente para visión por computador a bordo e
+inferencia de aprendizaje profundo (\emph{deep learning}) \cite{scalcon2024}.
+Esta tesis utiliza la NVIDIA Jetson Orin Nano como única plataforma
+experimental. Estudios recientes indican que el dispositivo es un candidato
+creíble para hospedar exactamente la clase de carga de trabajo estudiada
+aquí: Scalcon et al.\ evaluaron la familia Orin para monitoreo de video con
+inteligencia artificial y encontraron que la configuración de 15~W de la
+Orin Nano es adecuada para aplicaciones de vigilancia, sosteniendo en
+promedio 13~FPS para YOLOv4 con DeepStream \cite{scalcon2024}, mientras que
+Alqahtani et al., al evaluar de manera comparativa modelos de detección de
+objetos en dispositivos de borde heterogéneos, concluyeron que la Orin Nano
+ofrece el balance global más favorable entre precisión, latencia y energía
+en la mayoría de las familias de modelos \cite{alqahtani2026}. Trabajos
+complementarios caracterizan cómo la inferencia de redes neuronales en la
+Orin Nano depende de la pila de software---\emph{framework}, precisión
+numérica y lenguaje \cite{szegedi2026}--- y de los compromisos de energía y
+eficiencia a nivel de sistema \cite{zequn2026}. De manera notable para esta
+tesis, Szegedi et al.\ reportan que, para la detección de objetos, el
+preprocesamiento y el postprocesamiento representan una porción sustancial
+del tiempo de ejecución total, especialmente a resoluciones de entrada más
+altas \cite{szegedi2026}: una aplicación de visión por computador es más que
+su motor de inferencia. Comprende una cadena de etapas---adquisición de
+imágenes, preprocesamiento, inferencia y postprocesamiento--- y la forma en
+que esas etapas se conectan, dentro de un proceso único o a través de
+procesos que se comunican, es una decisión arquitectónica con consecuencias
+de rendimiento propias. Esa decisión es el objeto de esta tesis.
+
+En el ámbito del software, los sistemas robóticos han adoptado desde hace
+tiempo arquitecturas modulares. El Robot Operating System (ROS), introducido
+en 2009, no es un sistema operativo en el sentido tradicional de gestión y
+planificación de procesos, sino una capa de comunicación estructurada sobre
+el sistema operativo anfitrión \cite{quigley2009}. Su modelo basado en
+publicación y sus componentes reutilizables aceleraron demostrablemente la
+investigación en robótica \cite{macenski2022}. ROS~2, su segunda generación,
+fue rediseñado desde sus bases para cumplir requisitos que ROS~1 no
+anticipaba, incluidos el soporte para sistemas de tiempo real y los
+despliegues completamente distribuidos y multirobot \cite{macenski2022,
+portugal2025}. En términos arquitectónicos, ROS~2 reemplazó el máster
+central de ROS~1 por una capa de comunicación descentralizada construida
+sobre el estándar Data Distribution Service (DDS), que aporta descubrimiento,
+políticas configurables de calidad de servicio (QoS) y primitivas de
+transporte adecuadas para sistemas embebidos distribuidos de tiempo real
+\cite{macenski2022, maruyama2016, gambo2025}. El \emph{middleware} basado en
+DDS se ha extendido ampliamente en la robótica \cite{gambo2025}, y ROS~2 se
+utiliza actualmente en dominios tan diversos como vehículos autónomos,
+salud, agricultura, aeroespacial y logística \cite{al-batati2026}, con sus
+propiedades de tiempo real como objeto de investigación activa
+\cite{casini2026}. Con el término del soporte a largo plazo de ROS~1 en mayo
+de 2025, la migración de la comunidad a ROS~2 ya no es opcional
+\cite{portugal2025}: cómo estructurar aplicaciones en ROS~2 es una pregunta
+de diseño presente y urgente para esencialmente todo equipo de este
+ecosistema.
+
+En ROS~2, las aplicaciones se descomponen en \emph{nodos}: procesos
+independientes que intercambian mensajes tipados a través de canales lógicos
+llamados \emph{tópicos}. Este modelo basado en nodos es la fuente de la
+célebre modularidad de ROS~2---separación de responsabilidades, desarrollo y
+pruebas independientes, y reutilización de componentes entre sistemas
+\cite{macenski2022}--- pero también sitúa la comunicación entre procesos en
+la ruta crítica de la aplicación. Cada mensaje que cruza una frontera entre
+nodos puede incurrir en manejo de mensajes, serialización, copias de
+memoria, interacción con el planificador y procesamiento de transporte.
+Este sobrecosto de comunicación no es hipotético. Maruyama et al.\
+observaron, ya en 2016, que ROS~2 debe convertir los datos para DDS y
+abstraer DDS de sus usuarios, y que ello incurre en un sobrecosto adicional
+\cite{maruyama2016}. Kronauer et al.\ perfilaron sistemas ROS~2 multinodo y
+encontraron que las capas de ROS~2 añaden un sobrecosto de latencia de
+hasta 50\% con respecto a la comunicación DDS directa para mensajes
+pequeños, con una magnitud que depende de la implementación de DDS, del
+tamaño de la carga útil y de la configuración \cite{kronauer2021}. Kamiya
+et al.\ rastrearon la latencia a través de las capas internas de la
+comunicación de ROS~2 y atribuyeron más de la mitad de la latencia total de
+la comunicación predeterminada basada en sockets al segmento de transporte
+DDS; reemplazar el transporte por sockets por la comunicación por memoria
+compartida redujo la latencia total a menos de la mitad \cite{kamiya2025}.
+Luo et al.\ mostraron que incluso la comunicación intraproceso, a menudo
+asumida como despreciable, exhibe costos que crecen con el tamaño del
+mensaje y con la cantidad de suscriptores \cite{luo2025}. En hardware
+embebido estos efectos se amplifican: en una Raspberry Pi~4, Kronauer et al.\
+midieron la pérdida de aproximadamente el 30\% de los mensajes para cargas
+útiles de 500~KB y un aumento extremo y no lineal de la latencia una vez que
+las cadenas superaban unos 13--17 nodos con frecuencias de publicación
+superiores a 50~Hz \cite{kronauer2021}. El costo en recursos es igualmente
+tangible: componer nodos de ROS~2 en menos procesos ahorró 28\% de CPU y
+33\% de RAM para un sistema de navegación completo ejecutándose en un
+procesador ARM, y Macenski et al.\ reportan que las cadenas de procesamiento
+que transportan mensajes mayores que 1~MB---con imágenes y nubes de puntos
+como ejemplos canónicos--- son prácticamente imposibles sin dicha
+composición \cite{macenski2023}. Los flujos de video se encuentran entre las
+cargas útiles más grandes y frecuentes en los sistemas robóticos, dado que
+las plataformas autónomas procesan grandes volúmenes de datos de sensores a
+tasas elevadas \cite{kamiya2025}.
+
+La relevancia práctica de estos sobrecostos depende de la relación entre
+los costos de comunicación y el presupuesto de cómputo de la plataforma. En
+una máquina de clase estación de trabajo, el costo de mover un fotograma
+entre procesos puede ser pequeño en comparación con el costo de procesarlo.
+En un módulo embebido con recursos limitados que opera bajo una envolvente
+de potencia de unos pocos vatios, el mismo costo puede consumir una fracción
+sustancial del presupuesto de tiempo por fotograma, reduciendo la tasa de
+procesamiento alcanzable o violando los plazos de latencia. El desarrollador
+de una aplicación de visión por computador embebida enfrenta, por lo tanto,
+un dilema genuino: adoptar la arquitectura modular, bien respaldada e
+integrada al ecosistema que ROS~2 promueve, o conservar un diseño monolítico
+de proceso único que minimiza la comunicación interna al precio de la
+mantenibilidad y las herramientas. Resolver ese dilema con evidencia, en
+lugar de con intuición, requiere mediciones controladas en la clase de
+hardware donde la tensión es más aguda.
+
+\section{Planteamiento del problema}
+\label{sec:problem-statement}
+
+Una aplicación de visión por computador puede implementarse como un proceso
+único en el que la adquisición de imágenes, el preprocesamiento, la
+inferencia y el postprocesamiento se ejecutan secuencialmente dentro de un
+mismo programa. En este enfoque \emph{monolítico}, los datos pasan entre las
+etapas de procesamiento como llamadas a funciones ordinarias en memoria, sin
+serialización y sin transporte entre procesos. Alternativamente, la misma
+aplicación puede descomponerse en nodos de ROS~2 que se comunican mediante
+el intercambio de mensajes a través de tópicos. Esta arquitectura
+\emph{basada en nodos} proporciona mayor modularidad, pero introduce
+fronteras de comunicación entre las etapas de procesamiento, y cada frontera
+puede agregar un sobrecosto en tiempo y recursos computacionales
+\cite{maruyama2016, kronauer2021, kamiya2025, luo2025}. En una plataforma
+embebida con CPU, memoria y energía limitadas, estos costos adicionales
+pueden afectar la tasa de procesamiento y la latencia alcanzables de la
+aplicación \cite{kronauer2021, macenski2023}. La magnitud del efecto depende
+de la carga de trabajo, del grado de particionamiento y del hardware, y por
+lo tanto requiere una caracterización experimental en lugar de supuestos.
+
+Esta tensión no es específica de la robótica. En la ingeniería de software
+en general, el compromiso entre arquitecturas monolíticas y distribuidas
+(de estilo microservicios) se ha estudiado extensamente, y la evidencia
+aconseja no asumir que la distribución es gratuita: en una única máquina, se
+ha demostrado que un monolito supera en rendimiento a su contraparte basada
+en microservicios \cite{blinowski2022}, las diferencias de rendimiento entre
+ambos estilos son medibles y dependientes de la carga de trabajo
+\cite{tapia2020}, y una revisión crítica reciente incluso identifica una
+tendencia de migrar de vuelta desde arquitecturas distribuidas a monolíticas,
+motivada en parte por el costo, la complejidad y el rendimiento
+\cite{felisberto2024}. Un sistema multinodo de ROS~2 es, en este sentido,
+una arquitectura distribuida ejecutada en un único anfitrión, y los propios
+mantenedores de ROS~2 reconocen lo que está en juego: el mecanismo de
+composición fue creado específicamente para combatir los problemas de
+rendimiento del modelo de un proceso por nodo, y al menos un robot comercial
+con menos de 60~MB de RAM disponible no habría podido entregar en absoluto
+su aplicación de ROS~2 como procesos separados \cite{macenski2023}. Estudios
+de pilas completas de conducción autónoma descomponen la latencia de extremo
+a extremo en componentes de comunicación, cómputo e inactividad e
+identifican las latencias como problemas críticos en sistemas ROS~2 a escala
+de producción \cite{betz2023a}, y variantes arquitectónicas como los
+despliegues de microservicios contenerizados han sido evaluadas precisamente
+porque estos costos de comunicación importan \cite{betz2024}.
+
+Lo que la literatura revisada aún no proporciona, sin embargo, es una
+respuesta controlada a la escala de una cadena de procesamiento de visión
+por computador embebida. Los estudios de medición existentes caracterizan el
+middleware de forma aislada, utilizando cargas útiles sintéticas y cadenas
+publicador--suscriptor \cite{maruyama2016, kronauer2021, kamiya2025,
+luo2025, zhang2024}; los estudios de mitigaciones como la composición de
+nodos evalúan alternativas a la línea base multiproceso en lugar de la
+decisión de la línea base misma \cite{macenski2023}; y las evaluaciones de
+pila completa, como las de Autoware, confunden innumerables factores
+arquitectónicos y algorítmicos \cite{betz2023a, betz2024}. Hasta donde llega
+el conocimiento del autor, ningún estudio en la literatura revisada mantiene
+constantes la carga de trabajo de visión por computador, el modelo, los
+datos de entrada y el hardware mientras varía únicamente la arquitectura de
+la aplicación---proceso monolítico frente a cadena de nodos de ROS~2--- y el
+grado de particionamiento de la cadena, en una plataforma embebida de clase
+Jetson y con la biblioteca cliente rclpy que muchos desarrolladores de
+robótica utilizan en la práctica.
+% TODO: support the claim that Python/rclpy is widely used among ROS 2
+% developers with adoption data (e.g., from the Portugal et al. survey's
+% full text or the ROS 2 documentation); no source in the library states
+% this explicitly.
+El problema que aborda esta tesis es precisamente ese vacío: cuantificar el
+compromiso de rendimiento que acompaña a la adopción de una arquitectura
+basada en nodos para una carga de trabajo representativa de visión por
+computador en una plataforma embebida, bajo condiciones controladas y
+reproducibles.
+
+La relevancia de este problema es triple. Primero, es oportuno: con ROS~1
+llegando al fin de su vida útil, los equipos están migrando ahora sus
+sistemas de percepción a ROS~2 y deben tomar decisiones de arquitectura con
+consecuencias duraderas \cite{portugal2025}. Segundo, es de importancia
+práctica: la clase de hardware objetivo---ejemplificada por la Jetson Orin
+Nano--- es una elección predominante para la visión por computador en el
+borde \cite{scalcon2024, alqahtani2026}, y las cargas útiles involucradas,
+los flujos de imágenes, se encuentran entre las más demandantes que una
+cadena de ROS~2 transporta de manera rutinaria \cite{kamiya2025,
+macenski2023}. Tercero, es metodológicamente necesario: la propia comunidad
+de robótica llama a una evaluación comparativa de rendimiento estandarizada
+y reproducible del cómputo robótico \cite{mayoral-vilches2024}, y las
+comparaciones controladas por carga de trabajo de alternativas
+arquitectónicas son un ingrediente necesario de ese esfuerzo. La
+contribución de esta tesis es una caracterización experimental de los
+compromisos de rendimiento asociados a implementar una cadena de
+procesamiento de visión por computador como un conjunto de nodos de ROS~2 en
+lugar de como un proceso monolítico en una plataforma NVIDIA embebida,
+proporcionando orientación práctica para los desarrolladores que deben
+decidir si la modularidad de ROS~2 conlleva una penalización significativa
+de rendimiento para esta clase de carga de trabajo. La tesis no cuestiona
+los beneficios de modularidad de ROS~2, ni intenta establecer una
+clasificación universal de rendimiento de los middlewares de robótica.
+
+\section{Preguntas de investigación}
+\label{sec:research-questions}
+
+La pregunta de investigación principal de esta tesis es:
+
+\begin{quote}
+\emph{¿Cuál es el impacto sobre el rendimiento de particionar una cadena de
+procesamiento de visión por computador en nodos rclpy de ROS~2, en
+comparación con una implementación equivalente de proceso único en Python,
+cuando se ejecuta en una NVIDIA Jetson Orin Nano?}
+\end{quote}
+
+Además, se investiga una pregunta de investigación secundaria:
+
+\begin{quote}
+\emph{¿Cómo afecta el aumento del grado de particionamiento de la cadena de
+procesamiento de visión por computador en nodos de ROS~2 a la latencia, la
+tasa de procesamiento y la utilización de recursos?}
+\end{quote}
+
+El estudio se ocupa específicamente del compromiso de rendimiento asociado
+a la introducción de fronteras de comunicación de ROS~2 en una aplicación
+de visión por computador por lo demás equivalente. No se ocupa de identificar
+la manera más rápida posible de ejecutar visión por computador con ROS~2:
+esa pregunta involucra implementaciones de middleware, configuraciones de
+QoS, entornos de despliegue y lenguajes de programación que aquí se
+mantienen deliberadamente constantes, como se describe a continuación.
+
+\section{Objetivos}
+\label{sec:objectives}
+
+\subsection{Objetivo general}
+
+Caracterizar experimentalmente la diferencia de rendimiento entre una cadena
+de procesamiento de visión por computador monolítica en Python e
+implementaciones equivalentes en rclpy de ROS~2 sobre una NVIDIA Jetson
+Orin Nano.
+
+\subsection{Objetivos específicos}
+
+\begin{itemize}
+  \item Desarrollar una cadena de procesamiento de visión por computador
+        representativa, capaz de ejecutarse en la Jetson Orin Nano.
+  \item Implementar la cadena como una aplicación monolítica de proceso
+        único en Python.
+  \item Implementar etapas de procesamiento equivalentes como nodos rclpy
+        de ROS~2.
+  \item Desarrollar múltiples configuraciones de ROS~2 con distintos grados
+        de particionamiento de la cadena.
+  \item Establecer una metodología reproducible de evaluación comparativa
+        de rendimiento (\emph{benchmarking}).
+  \item Medir la latencia de extremo a extremo y la tasa de procesamiento.
+  \item Medir la utilización de CPU, RAM y GPU.
+  \item Medir, de manera opcional, el consumo de energía, si se dispone de
+        una medición confiable.
+  \item Comparar estadísticamente los resultados entre configuraciones.
+  \item Determinar cómo cambia el impacto sobre el rendimiento a medida que
+        la cadena de ROS~2 se particiona en mayor grado.
+\end{itemize}
+
+\section{Alcance y limitaciones}
+\label{sec:scope}
+
+Esta tesis compara dos implementaciones de la misma aplicación de visión
+por computador: una implementación monolítica de proceso único en Python y
+una implementación multiproceso de ROS~2 que utiliza rclpy. Ambas
+implementaciones comparten el mismo lenguaje de programación y el mismo
+entorno de ejecución, de modo que el lenguaje de programación sea una
+variable controlada y no un factor bajo investigación. El algoritmo de
+visión por computador subyacente, el modelo, los datos de entrada, el
+hardware y los parámetros de procesamiento relevantes se mantienen
+equivalentes entre las implementaciones. La variable independiente principal
+es la arquitectura de la aplicación; una variable independiente secundaria
+es el grado de particionamiento de ROS~2. Las variables dependientes son la
+latencia de extremo a extremo, la tasa de procesamiento, la utilización de
+CPU, RAM y GPU y, de manera opcional, el consumo de energía.
+
+Se utiliza una única distribución de ROS~2, una única implementación de DDS
+y una única configuración de QoS fija, con un despliegue sin contenedores.
+Estas decisiones se tratan como condiciones experimentales controladas y no
+como variables bajo investigación.
+
+Los siguientes temas quedan explícitamente fuera del alcance de esta tesis:
+
+\begin{itemize}
+  \item Comparación de diferentes lenguajes de programación
+  \item Evaluación comparativa de rendimiento de C++ / rclcpp
+  \item Nodos componibles de ROS~2
+  \item Comparación de diferentes implementaciones de DDS
+  \item Comparación de diferentes configuraciones de middleware de ROS~2
+  \item Comparación sistemática de políticas de QoS
+  \item Evaluación comparativa de rendimiento de Zenoh
+  \item Evaluación comparativa de rendimiento de Docker y de la
+        contenerización
+  \item Comparación de diferentes distribuciones de ROS~2
+  \item Comparación de diferentes plataformas de hardware Jetson
+  \item Comparación con otros middlewares de robótica
+  \item Evaluación comparativa de rendimiento integral de ROS~2 en su
+        conjunto
+  \item Evaluación de múltiples aplicaciones de visión por computador no
+        relacionadas entre sí
+\end{itemize}
+
+Estas exclusiones son deliberadas. La tesis no pretende responder cuál es la
+manera más rápida posible de ejecutar visión por computador con ROS~2, sino
+qué costo en rendimiento está asociado al particionamiento de una aplicación
+de visión por computador equivalente en nodos de ROS~2 sobre una NVIDIA
+Jetson Orin Nano. Los temas excluidos se discuten como posibles trabajos
+futuros en el Capítulo~6. Las limitaciones adicionales del estudio,
+incluidos el uso de una única plataforma de hardware, una única carga de
+trabajo de visión por computador, una configuración fija de DDS y QoS, e
+implementaciones en Python, son limitaciones de alcance de un estudio
+controlado y no deficiencias, y se discuten junto con las conclusiones.
+
+\section{Organización de la tesis}
+\label{sec:organization}
+
+El resto de esta tesis se organiza de la siguiente manera.
+
+\textbf{Capítulo~2 --- Antecedentes y trabajos relacionados} introduce la
+visión por computador en plataformas embebidas, la arquitectura de la
+plataforma NVIDIA Jetson, la arquitectura de ROS~2 y sus mecanismos de
+comunicación, la carga de trabajo de visión por computador seleccionada y
+las métricas de rendimiento utilizadas a lo largo de la tesis. Luego revisa
+trabajos relacionados sobre \emph{benchmarks} de ROS~2, estudios de
+middleware para robótica, benchmarks de visión por computador embebida y
+estudios del sobrecosto de comunicación de ROS~2, e identifica el vacío de
+investigación que esta tesis aborda.
+
+\textbf{Capítulo~3 --- Metodología} describe la plataforma experimental y el
+entorno de software, la cadena de procesamiento de visión por computador y
+sus implementaciones monolítica y de ROS~2, las configuraciones
+experimentales, el procedimiento de evaluación comparativa de rendimiento,
+la definición de cada métrica de rendimiento, los métodos de análisis de
+datos y las medidas adoptadas para asegurar la reproducibilidad.
+
+\textbf{Capítulo~4 --- Resultados} presenta los resultados experimentales,
+incluidas la tasa de procesamiento, la latencia de extremo a extremo, la
+utilización de CPU, memoria y GPU y, si se mide, el consumo de energía,
+junto con la comparación de las configuraciones de ROS~2 con distintos
+grados de particionamiento.
+
+\textbf{Capítulo~5 --- Discusión} interpreta los resultados, evalúa las
+hipótesis, compara los hallazgos con investigaciones previas y discute
+observaciones inesperadas y sus posibles explicaciones.
+
+\textbf{Capítulo~6 --- Conclusiones y trabajos futuros} responde las
+preguntas de investigación, resume los hallazgos principales, discute las
+limitaciones del estudio y esboza direcciones para futuras investigaciones.
