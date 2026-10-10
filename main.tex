@@ -22,6 +22,9 @@
 
 \begin{document}
 
+% ---- Front matter: roman numerals ----
+\pagenumbering{Roman}
+
 \include{sections/portada}
 %\include{sections/agradecimientos}
 %\include{sections/dedicatoria}
@@ -30,12 +33,18 @@
 
 \glsaddall
 \printglossaries
-
 \include{sections/indice}
-\include{sections/introduccion}
-\include{sections/body/chapter-1}
-\include{sections/body/chapter-2}
-\include{sections/body/chapter-3}
+
+ % ---- Body: arabic numerals ----
+\clearpage              % important: switch on a fresh page
+\pagenumbering{arabic}  % resets counter back to 1
+
+\include{sections/capitulo-1}
+\include{sections/capitulo-2}
+\include{sections/capitulo-3}
+%\include{sections/body/chapter-1}
+%\include{sections/body/chapter-2}
+%\include{sections/body/chapter-3}
 \include{sections/conclusiones}
 \printbibliography
 \include{sections/anexos}
