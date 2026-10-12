@@ -1,28 +1,43 @@
+\providecommand{\todo}[1]{\textbf{[TODO: #1]}}
+
 \chapter*{Resumen}
-Robot Operating System 2 es un conjunto de bibliotecas de software y herramientas para construir soluciones de robótica.
-Se basa en una arquitectura modular y conducida por eventos mediante el desarrollo de nodos 
-que son interconectados mediante mecanismos de comunicación al tiempo de ejecución.
+\addcontentsline{toc}{chapter}{Resumen}
 
-Los principios de diseño de ROS 2 son de especial beneficio para el diseño y escalado de sistemas complejos
-donde multiples subsistemas conforman una solución y existen relaciones de dependencias no lineales entre ellos,
-como es común de observar en el campo de la robotica, con entradas simultaneas desde varios sensores,
-procesamiento en varios subsistemas tales como sistemas de visión por computador, planificación de caminos, cinematica inversa y control, 
-multiples salidas desde actuaciones de sistemas electricos hasta comunicación con servidores u otros robots.
+Los sistemas robóticos y de computación en el borde modernos ejecutan cargas de trabajo de visión por
+computador cada vez con mayor frecuencia sobre plataformas embebidas, en
+las que los presupuestos de cómputo, memoria y energía son restringidos.
 
-Sí bien hay una serie de ventajas al usar ROS 2, un aspecto poco explorado es el
-impacto que tiene su uso en el rendimiento de aplicaciones. Al desarrollar una aplicación
-modular con ROS 2 se esta haciendo uso implicito de un middleware de comunicaciónes llamado Data Distribution Service
-o DDS, que se encarga de facilitar los mecanismos de comunicación interproceso, comparado a una aplicación uniproceso
-los datos que un nodo envia a otro deben pasar por una pila completa de comunicación, lo cual alza 
-preocupación sobre la degradación del rendimiento debido a un uso mayor de recursos computaciones para
-implementar estos mecanismos, así como tambien una reducción en metricas clave como latencia y thoughput como consecuencia de ello.
+El \emph{middleware} ROS~2 favorece arquitecturas modulares mediante nodos
+que se comunican por intercambio de mensajes; sin embargo, cada frontera de
+comunicación entre nodos puede introducir sobrecostos de serialización,
+transferencia de memoria y planificación que afectan la latencia y la tasa
+de procesamiento, un efecto particularmente relevante en plataformas con
+recursos limitados. 
 
-En este trabajo se busca caracterizar el impacto sobre el rendimiento de una aplicación al usar ROS 2, 
-para este fin se diseña e implementa una aplicación de visión por computador representativa de sistemas
-usados en la industria, en una versión monolitica sin ROS 2 y una versión modular con ROS 2 sobre las cuales se 
-realizaran pruebas de rendimiento.
+Este trabajo caracteriza experimentalmente el impacto
+sobre el rendimiento de particionar una cadena de procesamiento de video en
+nodos de ROS~2 (rclpy), en comparación con una implementación equivalente
+de proceso único en Python, sobre una plataforma NVIDIA Jetson Orin Nano.
 
-Para las pruebas de rendimiento se prepara una metodologia de medición basada en herramientas de monitoreo de sistema e instrumentación de software,
-y se monitorea el rendimiento de ambas versiones de la aplicación corriendo sobre una plataforma de hardware Nvidia Jetson y
-posteriormente se analizan los resultados para evaluar el impacto del uso de ROS 2 sobre el rendimiento de la aplicación.
+Se desarrollan implementaciones funcionalmente equivalentes de una misma
+aplicación de visión por computador basada en un modelo de red neuronal
+\todo{SPECIFICAR: modelo seleccionado} y se evalúan mediante una metodología de
+medición reproducible, con configuraciones de particionamiento creciente 
+y varias resoluciones de entrada,
+midiendo latencia de extremo a extremo, tasa de procesamiento (FPS) y
+utilización de CPU, RAM y GPU.
 
+\todo{RESULTADOS: resumir el hallazgo principal una vez finalizados los
+experimentos (diferencias de latencia, tasa de procesamiento y utilización
+de recursos entre configuraciones, y efecto del grado de particionamiento).}
+
+\todo{CONCLUSION: cerrar con la respuesta a la pregunta de investigación y
+la implicación práctica para desarrolladores de sistemas robóticos
+embebidos.} El aporte principal es una caracterización cuantitativa y
+controlada del compromiso entre la modularidad que ofrece ROS~2 y su costo
+en rendimiento para este tipo de carga de trabajo sobre plataformas
+embebidas.
+
+\bigskip
+\noindent\textbf{Palabras clave:} ROS~2, visión por computador, plataformas
+embebidas, NVIDIA Jetson Orin Nano, rendimiento, latencia.

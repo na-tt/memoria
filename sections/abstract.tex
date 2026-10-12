@@ -1,2 +1,39 @@
+\providecommand{\todo}[1]{\textbf{[TODO: #1]}}
+
 \chapter*{Abstract}
-In this work we study the performance impact on software of using ROS 2.
+\addcontentsline{toc}{chapter}{Abstract}
+
+Modern robotic and edge computing systems increasingly execute computer-vision workloads on
+embedded platforms, where compute, memory, and energy budgets are
+constrained. 
+
+The ROS~2 middleware promotes modular architectures through
+nodes that communicate by message passing; however, each communication
+boundary between nodes can introduce serialization, memory-transfer, and
+scheduling overheads that affect latency and throughput, an effect that is
+particularly relevant on resource-limited platforms. 
+
+This work experimentally characterizes the performance impact of partitioning a video
+processing pipeline into ROS~2 nodes (rclpy), compared with an equivalent
+single-process Python implementation, on an NVIDIA Jetson Orin Nano.
+
+Functionally equivalent implementations of the same neural-network-based
+computer-vision application \todo{SPECIFY: selected model} 
+are evaluated under a reproducible
+benchmarking methodology, with increasing partitioning configurations and several input resolutions,
+measuring end-to-end latency, throughput (FPS), and CPU, RAM, and GPU
+utilization.
+
+\todo{RESULTS: summarize the main finding once the experiments are complete
+(latency, throughput, and resource-utilization differences between
+configurations, and the effect of the degree of partitioning).}
+
+\todo{CONCLUSION: close with the answer to the research question and the
+practical implication for developers of embedded robotic systems.} The
+primary contribution is a controlled, quantitative characterization of the
+trade-off between the modularity offered by ROS~2 and its performance cost
+for this class of workload on embedded platforms.
+
+\bigskip
+\noindent\textbf{Keywords:} ROS~2, computer vision, embedded platforms,
+NVIDIA Jetson Orin Nano, performance, latency.

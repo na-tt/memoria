@@ -20,5 +20,6 @@
         "**/*.glo": true,
         "**/*.gls": true,
         "**/*.ist": true
-   }
+    },
+    "latex-workshop.latex.recipe.default": "latexmk (xelatex)"
 }
