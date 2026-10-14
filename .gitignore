@@ -11,6 +11,7 @@
 *.bbl
 *.bbl-SAVE-ERROR
 *.bcf
+*.bcf-SAVE-ERROR
 *.blg
 *.run.xml
 *.glg

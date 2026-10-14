@@ -5,6 +5,7 @@
         "**/*.bbl": true,
         "**/*.bbl-SAVE-ERROR": true,
         "**/*.bcf": true,
+        "**/*.bcf-SAVE-ERROR": true,
         "**/*.blg": true,
         "**/*.fdb_latexmk": true,
         "**/*.fls": true,
