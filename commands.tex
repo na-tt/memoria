@@ -1,0 +1,22 @@
+% commands.tex
+% Definiciones de comandos personalizados compartidos por todo el documento.
+% Se carga una sola vez desde el preámbulo de main.tex.
+%
+% Se usa \providecommand (en lugar de \newcommand) para que la definición no
+% entre en conflicto si algún paquete ya define el mismo nombre.
+
+% Marcador de decisión pendiente. Visible en el PDF compilado para no olvidar
+% completarlo antes de la entrega.
+\providecommand{\todo}[1]{\textbf{[TODO: #1]}}
+
+% Stub de figura: incluye la imagen si el archivo existe y, mientras no exista,
+% dibuja un recuadro de marcador de posición para que el documento siga
+% compilando. Requiere graphicx y float (cargados en main.tex).
+\providecommand{\figstub}[2][\linewidth]{%
+  \IfFileExists{#2}{%
+    \includegraphics[width=#1]{#2}%
+  }{%
+    \fbox{\parbox[c][4.5cm][c]{0.82\linewidth}{%
+      \centering\itshape [Figura pendiente: \texttt{\detokenize{#2}}]}}%
+  }%
+}

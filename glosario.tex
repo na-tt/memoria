@@ -1,5 +1,296 @@
+% glosario.tex
+% Glosario de términos técnicos del documento.
+%
+% Las entradas se definen con \newglossaryentry (paquete glossaries) y se
+% imprimen con \printglossaries en main.tex. Todas las entradas se listan
+% aunque no se citen con \gls{}, gracias a \glsaddallunused al final del
+% documento.
+%
+% Prueba de concepto: se incluye una base de conceptos de ROS con el fin de
+% fijar terminología de forma consistente. Los términos que se conservan en
+% inglés se marcan con \emph{} en su primera aparición.
+
+% ---------------------------------------------------------------------------
+% ROS: generalidades
+% ---------------------------------------------------------------------------
+
 \newglossaryentry{ros}
 {
-    name=ROS,
-    description={Robot Operating System}
+    name={ROS},
+    description={Robot Operating System. \emph{Middleware} de código abierto
+    para el desarrollo de software de robots como una colección distribuida de
+    procesos cooperantes. El término designa a la familia completa; cuando la
+    distinción importa, en este trabajo se escribe explícitamente ROS 1 o
+    ROS 2}
+}
+
+\newglossaryentry{ros1}
+{
+    name={ROS 1},
+    description={Primera generación de ROS. Su arquitectura de comunicación se
+    apoya en un nodo maestro central y en un protocolo de transporte propio
+    (TCPROS/UDPROS), por lo que no es compatible a nivel de comunicación con
+    ROS 2}
+}
+
+\newglossaryentry{ros2}
+{
+    name={ROS 2},
+    description={Segunda generación de ROS. Sustituye el diseño de ROS 1 por
+    una arquitectura distribuida sin maestro central, construida sobre el
+    estándar DDS y el protocolo RTPS, e introduce mejoras en tiempo real,
+    calidad de servicio y seguridad. Es la plataforma que se evalúa en este
+    trabajo}
+}
+
+\newglossaryentry{maestro}
+{
+    name={maestro},
+    description={Nodo central de ROS 1 (\emph{master}, ejecutado por el
+    proceso \texttt{roscore}) que registra a los nodos y les permite
+    descubrirse entre sí. ROS 2 elimina este punto único de falla al delegar el
+    descubrimiento en el \emph{middleware} DDS}
+}
+
+\newglossaryentry{distribucion}
+{
+    name={distribución},
+    description={Versión publicada de ROS (\emph{distribution}), como Humble
+    Hawksbill o Jazzy Jalisco. Cada distribución fija las versiones
+    compatibles de las bibliotecas cliente, las implementaciones de DDS y el
+    conjunto de paquetes disponibles}
+}
+
+% ---------------------------------------------------------------------------
+% Modelo de comunicación
+% ---------------------------------------------------------------------------
+
+\newglossaryentry{nodo}
+{
+    name={nodo},
+    description={Proceso que encapsula una pieza coherente de funcionalidad,
+    como leer una cámara, preprocesar imágenes o ejecutar un modelo de red
+    neuronal. Los nodos se comunican entre sí mediante tópicos, servicios o
+    acciones, y constituyen la unidad de particionamiento que se estudia en
+    este trabajo}
+}
+
+\newglossaryentry{topico}
+{
+    name={tópico},
+    description={Bus de comunicación nombrado y fuertemente tipado por el que
+    los nodos intercambian mensajes mediante un modelo de publicación y
+    suscripción. Cada nodo suscriptor a un tópico recibe su propia copia de
+    cada mensaje publicado en él}
+}
+
+\newglossaryentry{mensaje}
+{
+    name={mensaje},
+    description={Unidad de datos intercambiada por un tópico. Su estructura se
+    define de forma declarativa y se materializa como una interfaz de ROS; la
+    serialización y la copia de cada mensaje constituyen parte del sobrecosto
+    asociado a una frontera de comunicación entre nodos}
+}
+
+\newglossaryentry{publicador}
+{
+    name={publicador},
+    description={Nodo, o parte de un nodo, que escribe mensajes en un tópico
+    (\emph{publisher}). En el modelo de publicación y suscripción no conoce a
+    los suscriptores ni depende de ellos}
+}
+
+\newglossaryentry{suscriptor}
+{
+    name={suscriptor},
+    description={Nodo, o parte de un nodo, que se registra en un tópico para
+    recibir los mensajes publicados en él (\emph{subscriber}). Cada suscriptor
+    recibe su propia copia del mensaje}
+}
+
+\newglossaryentry{servicio}
+{
+    name={servicio},
+    description={Patrón de comunicación síncrono de tipo petición y respuesta
+    entre dos nodos: un cliente envía una solicitud y un servidor devuelve una
+    respuesta. Se usa para operaciones puntuales, a diferencia de los tópicos,
+    que siguen un flujo continuo de datos}
+}
+
+\newglossaryentry{accion}
+{
+    name={acción},
+    description={Patrón de comunicación orientado a tareas de larga duración.
+    Un cliente propone un objetivo y el servidor informa de su avance y
+    resultado; se construye sobre servicios y tópicos}
+}
+
+\newglossaryentry{parametro}
+{
+    name={parámetro},
+    description={Valor de configuración asociado a un nodo, declarado en
+    tiempo de ejecución y consultable o modificable desde otros nodos o
+    herramientas. Permite variar la configuración sin recompilar}
+}
+
+\newglossaryentry{interfaz}
+{
+    name={interfaz},
+    description={Descripción declarativa del tipo de dato que transporta una
+    comunicación de ROS (mensaje, servicio o acción). Se define en archivos
+    \texttt{.msg}, \texttt{.srv} o \texttt{.action} y se comparte entre las
+    implementaciones de lenguaje mediante la generación de código}
+}
+
+\newglossaryentry{grafo-computo}
+{
+    name={grafo de cómputo},
+    description={Representación del sistema como una red de nodos conectados
+    por tópicos, servicios y acciones (\emph{computation graph}). Es la vista
+    de más alto nivel de una aplicación de ROS y determina qué fronteras de
+    comunicación existen entre sus etapas}
+}
+
+\newglossaryentry{descubrimiento}
+{
+    name={descubrimiento},
+    description={Mecanismo por el cual los nodos se detectan y establecen
+    comunicación sin un intermediario central (\emph{discovery}). En ROS 2 lo
+    provee el \emph{middleware} DDS, y su costo puede influir en la latencia de
+    establecimiento de las comunicaciones}
+}
+
+% ---------------------------------------------------------------------------
+% Pila de software y bibliotecas cliente
+% ---------------------------------------------------------------------------
+
+\newglossaryentry{middleware}
+{
+    name={middleware},
+    description={Capa de software que media entre la aplicación y el sistema
+    operativo o la red, y que ofrece abstracciones de comunicación
+    distribuidas. En ROS 2 la capa de \emph{middleware} es DDS, accedida a
+    través de la interfaz rmw}
+}
+
+\newglossaryentry{dds}
+{
+    name={DDS},
+    description={Data Distribution Service. Estándar de \emph{middleware} de
+    comunicación de tipo publicación y suscripción, en tiempo real y
+    distribuido, sobre el que ROS 2 construye su transporte. Existen varias
+    implementaciones conformes, como Fast DDS o Cyclone DDS}
+}
+
+\newglossaryentry{rtps}
+{
+    name={RTPS},
+    description={Real-Time Publish-Subscribe. Protocolo de red que define el
+    formato de los mensajes y el descubrimiento entre participantes de DDS.
+    Es el protocolo de interoperabilidad sobre el que se comunican
+    implementaciones DDS distintas, y por lo tanto ROS 2}
+}
+
+\newglossaryentry{rmw}
+{
+    name={rmw},
+    description={ROS MiddleWare. Capa de abstracción que desacopla las
+    bibliotecas cliente de ROS 2 de la implementación concreta de DDS. Cada
+    implementación de DDS se ofrece como una \emph{interfaz} rmw
+    seleccionable, de modo que la latencia y el rendimiento observados pueden
+    depender de la variante elegida}
+}
+
+\newglossaryentry{rcl}
+{
+    name={rcl},
+    description={Biblioteca intermedia en C que concentra la funcionalidad
+    común a todas las bibliotecas cliente de ROS 2: gestión de nodos,
+    temporizadores y ejecutores, entre otros. Se sitúa entre la capa rmw y las
+    bibliotecas cliente específicas de cada lenguaje}
+}
+
+\newglossaryentry{rclcpp}
+{
+    name={rclcpp},
+    description={Biblioteca cliente de ROS 2 para C++. Ofrece la API de
+    comunicación de más alto nivel sobre rcl y suele emplearse cuando se
+    requieren requisitos estrictos de rendimiento o de tiempo real}
+}
+
+\newglossaryentry{rclpy}
+{
+    name={rclpy},
+    description={Biblioteca cliente de ROS 2 para Python. Sobre rcl ofrece una
+    API idiomática de Python; es la biblioteca empleada en las
+    implementaciones de ROS 2 evaluadas en este trabajo}
+}
+
+\newglossaryentry{callback}
+{
+    name={callback},
+    description={Función de retrollamada invocada en respuesta a un evento,
+    como la llegada de un mensaje o la expiración de un temporizador. La
+    estructura de los \emph{callbacks} de un nodo y su forma de encolarse
+    determinan cómo responde una etapa de la cadena a los datos entrantes}
+}
+
+\newglossaryentry{ejecutor}
+{
+    name={ejecutor},
+    description={Mecanismo que toma los \emph{callbacks} encolados y los
+    ejecuta (\emph{executor}). Las distribuciones estándar de ROS 2 ofrecen un
+    ejecutor de un solo hilo, uno multihilo y una variante estática de un solo
+    hilo; su elección es inseparable del rendimiento de un nodo}
+}
+
+\newglossaryentry{qos}
+{
+    name={QoS},
+    description={Quality of Service. Conjunto de políticas que definen las
+    garantías de una comunicación de ROS 2, como la fiabilidad, la
+    perdurabilidad o la profundidad de la cola. La configuración de QoS afecta
+    de forma medible a la latencia y a la pérdida de mensajes, por lo que debe
+    fijarse como parte del diseño experimental}
+}
+
+% ---------------------------------------------------------------------------
+% Herramientas y flujo de trabajo
+% ---------------------------------------------------------------------------
+
+\newglossaryentry{paquete}
+{
+    name={paquete},
+    description={Unidad de organización y distribución de software en ROS
+    (\emph{package}). Agrupa código, interfaces, dependencias y archivos de
+    configuración, y es la unidad con la que operan las herramientas de
+    compilación y de gestión de dependencias}
+}
+
+\newglossaryentry{espacio-trabajo}
+{
+    name={espacio de trabajo},
+    description={Directorio que agrupa paquetes de ROS y sus artefactos de
+    compilación (\emph{workspace}). En ROS 2 se compila con la herramienta
+    \texttt{colcon}, que genera los entornos de ejecución usados al lanzar los
+    nodos}
+}
+
+\newglossaryentry{archivo-lanzamiento}
+{
+    name={archivo de lanzamiento},
+    description={Archivo declarativo (\emph{launch file}) que especifica qué
+    nodos se inician, con qué parámetros y con qué configuración. Define la
+    topología concreta del grafo de cómputo en una ejecución y, por lo tanto,
+    el particionamiento bajo estudio}
+}
+
+\newglossaryentry{bolsa}
+{
+    name={bolsa},
+    description={Archivo que registra los mensajes publicados en uno o más
+    tópicos para su reproducción posterior (\emph{bag}). Permite repetir una
+    ejecución con datos de entrada idénticos y así comparar configuraciones de
+    forma controlada}
 }

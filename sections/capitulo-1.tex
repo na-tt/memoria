@@ -48,7 +48,7 @@ inteligencia artificial en el borde. Estos módulos integran núcleos de CPU
 Arm con aceleradores de GPU de NVIDIA en un factor de forma eficiente en
 energía y se utilizan ampliamente para visión por computador a bordo e
 inferencia de aprendizaje profundo (\emph{deep learning}) \cite{scalcon2024}.
-Esta tesis utiliza la NVIDIA Jetson Orin Nano como única plataforma
+En esta memoria de título se utiliza la NVIDIA Jetson Orin Nano como única plataforma
 experimental. Estudios recientes indican que el dispositivo es un candidato
 creíble para hospedar exactamente la clase de carga de trabajo estudiada
 aquí: Scalcon et al.\ evaluaron la familia Orin para monitoreo de video con
@@ -62,8 +62,8 @@ en la mayoría de las familias de modelos \cite{alqahtani2026}. Trabajos
 complementarios caracterizan cómo la inferencia de redes neuronales en la
 Orin Nano depende de la pila de software---\emph{framework}, precisión
 numérica y lenguaje \cite{szegedi2026}--- y de los compromisos de energía y
-eficiencia a nivel de sistema \cite{zequn2026}. De manera notable para esta
-tesis, Szegedi et al.\ reportan que, para la detección de objetos, el
+eficiencia a nivel de sistema \cite{zequn2026}. De manera notable para este
+trabajo, Szegedi et al.\ reportan que, para la detección de objetos, el
 preprocesamiento y el postprocesamiento representan una porción sustancial
 del tiempo de ejecución total, especialmente a resoluciones de entrada más
 altas \cite{szegedi2026}: una aplicación de visión por computador es más que
@@ -71,7 +71,7 @@ su motor de inferencia. Comprende una cadena de etapas---adquisición de
 imágenes, preprocesamiento, inferencia y postprocesamiento--- y la forma en
 que esas etapas se conectan, dentro de un proceso único o a través de
 procesos que se comunican, es una decisión arquitectónica con consecuencias
-de rendimiento propias. Esa decisión es el objeto de esta tesis.
+de rendimiento propias. Esa decisión es el objeto de esta memoria.
 
 En el ámbito del software, los sistemas robóticos han adoptado desde hace
 tiempo arquitecturas modulares. El Robot Operating System (ROS), introducido
@@ -221,7 +221,7 @@ robótica utilizan en la práctica.
 % developers with adoption data (e.g., from the Portugal et al. survey's
 % full text or the ROS 2 documentation); no source in the library states
 % this explicitly.
-El problema que aborda esta tesis es precisamente ese vacío: cuantificar el
+El problema que aborda esta memoria es precisamente ese vacío: cuantificar el
 compromiso de rendimiento que acompaña a la adopción de una arquitectura
 basada en nodos para una carga de trabajo representativa de visión por
 computador en una plataforma embebida, bajo condiciones controladas y
@@ -241,20 +241,20 @@ de robótica llama a una evaluación comparativa de rendimiento estandarizada
 y reproducible del cómputo robótico \cite{mayoral-vilches2024}, y las
 comparaciones controladas por carga de trabajo de alternativas
 arquitectónicas son un ingrediente necesario de ese esfuerzo. La
-contribución de esta tesis es una caracterización experimental de los
+contribución de esta memoria es una caracterización experimental de los
 compromisos de rendimiento asociados a implementar una cadena de
 procesamiento de visión por computador como un conjunto de nodos de ROS~2 en
 lugar de como un proceso monolítico en una plataforma NVIDIA embebida,
 proporcionando orientación práctica para los desarrolladores que deben
 decidir si la modularidad de ROS~2 conlleva una penalización significativa
-de rendimiento para esta clase de carga de trabajo. La tesis no cuestiona
+de rendimiento para esta clase de carga de trabajo. La memoria no cuestiona
 los beneficios de modularidad de ROS~2, ni intenta establecer una
 clasificación universal de rendimiento de los middlewares de robótica.
 
 \section{Preguntas de investigación}
 \label{sec:research-questions}
 
-La pregunta de investigación principal de esta tesis es:
+La pregunta de investigación principal de esta memoria es:
 
 \begin{quote}
 \emph{¿Cuál es el impacto sobre el rendimiento de particionar una cadena de
@@ -314,7 +314,7 @@ Orin Nano.
 \section{Alcance y limitaciones}
 \label{sec:scope}
 
-Esta tesis compara dos implementaciones de la misma aplicación de visión
+Esta memoria compara dos implementaciones de la misma aplicación de visión
 por computador: una implementación monolítica de proceso único en Python y
 una implementación multiproceso de ROS~2 que utiliza rclpy. Ambas
 implementaciones comparten el mismo lenguaje de programación y el mismo
@@ -333,7 +333,7 @@ y una única configuración de QoS fija, con un despliegue sin contenedores.
 Estas decisiones se tratan como condiciones experimentales controladas y no
 como variables bajo investigación.
 
-Los siguientes temas quedan explícitamente fuera del alcance de esta tesis:
+Los siguientes temas quedan explícitamente fuera del alcance de esta memoria:
 
 \begin{itemize}
   \item Comparación de diferentes lenguajes de programación
@@ -354,7 +354,7 @@ Los siguientes temas quedan explícitamente fuera del alcance de esta tesis:
         relacionadas entre sí
 \end{itemize}
 
-Estas exclusiones son deliberadas. La tesis no pretende responder cuál es la
+Estas exclusiones son deliberadas. Este trabajo no pretende responder cuál es la
 manera más rápida posible de ejecutar visión por computador con ROS~2, sino
 qué costo en rendimiento está asociado al particionamiento de una aplicación
 de visión por computador equivalente en nodos de ROS~2 sobre una NVIDIA
@@ -365,20 +365,20 @@ trabajo de visión por computador, una configuración fija de DDS y QoS, e
 implementaciones en Python, son limitaciones de alcance de un estudio
 controlado y no deficiencias, y se discuten junto con las conclusiones.
 
-\section{Organización de la tesis}
+\section{Organización de la memoria}
 \label{sec:organization}
 
-El resto de esta tesis se organiza de la siguiente manera.
+El resto de esta memoria se organiza de la siguiente manera.
 
 \textbf{Capítulo~2 --- Antecedentes y trabajos relacionados} introduce la
 visión por computador en plataformas embebidas, la arquitectura de la
 plataforma NVIDIA Jetson, la arquitectura de ROS~2 y sus mecanismos de
 comunicación, la carga de trabajo de visión por computador seleccionada y
-las métricas de rendimiento utilizadas a lo largo de la tesis. Luego revisa
+las métricas de rendimiento utilizadas a lo largo de la memoria. Luego revisa
 trabajos relacionados sobre \emph{benchmarks} de ROS~2, estudios de
 middleware para robótica, benchmarks de visión por computador embebida y
 estudios del sobrecosto de comunicación de ROS~2, e identifica el vacío de
-investigación que esta tesis aborda.
+investigación que esta memoria aborda.
 
 \textbf{Capítulo~3 --- Metodología} describe la plataforma experimental y el
 entorno de software, la cadena de procesamiento de visión por computador y

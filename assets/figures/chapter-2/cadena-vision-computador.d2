@@ -1,0 +1,53 @@
+# Cadena lógica de procesamiento de un sistema de visión por computador.
+# Representa las etapas abstractas del pipeline y la forma que adopta la
+# información al atravesar cada frontera, con independencia del mecanismo de
+# implementación (proceso único, middleware, etc.).
+
+direction: right
+
+classes: {
+  etapa: {
+    shape: rectangle
+    style: {
+      fill: "#e8eef7"
+      stroke: "#2f4b7c"
+      stroke-width: 2
+      border-radius: 8
+      font-size: 24
+      bold: true
+    }
+  }
+  flujo: {
+    style: {
+      stroke: "#2f4b7c"
+      stroke-width: 2
+      font-size: 18
+    }
+  }
+}
+
+adquisicion: "Adquisición" {
+  class: etapa
+}
+preprocesamiento: "Preprocesamiento" {
+  class: etapa
+}
+inferencia: "Inferencia" {
+  class: etapa
+}
+postprocesamiento: "Postprocesamiento" {
+  class: etapa
+}
+
+adquisicion -> preprocesamiento: {
+  class: flujo
+  label: "fotograma"
+}
+preprocesamiento -> inferencia: {
+  class: flujo
+  label: "tensor de entrada"
+}
+inferencia -> postprocesamiento: {
+  class: flujo
+  label: "predicciones de la red"
+}

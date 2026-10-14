@@ -21,5 +21,6 @@
         "**/*.gls": true,
         "**/*.ist": true
     },
-    "latex-workshop.latex.recipe.default": "latexmk (xelatex)"
+    "latex-workshop.latex.recipe.default": "latexmk (xelatex)",
+    "latex-workshop.latex.autoBuild.run": "never"
 }

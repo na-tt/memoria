@@ -12,7 +12,7 @@
 
 \usepackage[hidelinks]{hyperref}
 
-\usepackage{glossaries}
+\usepackage[toc]{glossaries}
 \makeglossaries
 \input{glosario.tex}
 
@@ -21,6 +21,9 @@
 \usepackage{float}
 \usepackage{amssymb}
 \usepackage{datetime2} % for debug purposes only remove on final release
+
+% Comandos personalizados del documento (\todo, \figstub, ...)
+\input{commands.tex}
 
 \begin{document}
 
@@ -33,7 +36,6 @@
 \include{sections/resumen}
 \include{sections/abstract}
 
-\glsaddall
 \printglossaries
 \include{sections/indice}
 
@@ -44,13 +46,15 @@
 \include{sections/capitulo-1}
 \include{sections/capitulo-2}
 \include{sections/capitulo-3}
-%\include{sections/body/chapter-1}
-%\include{sections/body/chapter-2}
-%\include{sections/body/chapter-3}
+
 \include{sections/conclusiones}
 \printbibliography
 \include{sections/anexos}
 
-
+% Incluye en el glosario las entradas que no fueron citadas con \gls{},
+% sin agregarles un número de página (ubicación invisible).
+% Debe ir al final del documento para no producir comas o guiones espurios
+% en la lista de ubicaciones de las entradas que sí se citan en el cuerpo.
+\glsaddallunused
 
 \end{document}

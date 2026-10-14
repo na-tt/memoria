@@ -9,8 +9,6 @@
 % to be completed once determined; % TODO comments mark citation gaps. No
 % experimental results are reported in this chapter.
 
-\providecommand{\todo}[1]{\textbf{[TODO: #1]}}
-
 \chapter{Metodología}
 \label{chap:methodology}
 
@@ -44,7 +42,7 @@ Todos los experimentos se ejecutan en este único dispositivo, con los nodos
 de las configuraciones de ROS~2 ejecutándose como procesos separados del
 sistema operativo en el mismo anfitrión. Ejecutar todos los procesos en un
 dispositivo aísla el efecto de la propia arquitectura de ROS~2 de los
-efectos de red, que están fuera del alcance de esta tesis.
+efectos de red, que están fuera del alcance de esta memoria.
 
 \section{Entorno de software}
 \label{sec:software-environment}
@@ -200,7 +198,7 @@ Esto da como resultado $3 \times 3 = 9$ condiciones experimentales:
 % NOTE: requires \usepackage{amssymb} in the preamble for \checkmark.
 \begin{table}[htbp]
   \centering
-  \caption{Matriz experimental principal.}
+  \caption[Matriz experimental principal.]{Matriz experimental principal.}
   \label{tab:experimental-matrix}
   \begin{tabular}{clcccc}
     \hline

@@ -1,0 +1,52 @@
+# Cadena de procesamiento de video en ROS 2.
+# Cada nodo publica en un tópico y el nodo siguiente se suscribe a él;
+# las flechas etiquetadas representan esas relaciones publicador/suscriptor.
+
+direction: right
+
+classes: {
+  nodo: {
+    shape: rectangle
+    style: {
+      fill: "#e8eef7"
+      stroke: "#2f4b7c"
+      stroke-width: 2
+      border-radius: 8
+      font-size: 24
+      bold: true
+    }
+  }
+  flujo: {
+    style: {
+      stroke: "#2f4b7c"
+      stroke-width: 2
+      font-size: 18
+    }
+  }
+}
+
+adquisicion: "Adquisición" {
+  class: nodo
+}
+preprocesamiento: "Preprocesamiento" {
+  class: nodo
+}
+inferencia: "Inferencia" {
+  class: nodo
+}
+postprocesamiento: "Postprocesamiento" {
+  class: nodo
+}
+
+adquisicion -> preprocesamiento: {
+  class: flujo
+  label: "/imagen_cruda\nsensor_msgs/Image"
+}
+preprocesamiento -> inferencia: {
+  class: flujo
+  label: "/imagen_procesada\nsensor_msgs/Image"
+}
+inferencia -> postprocesamiento: {
+  class: flujo
+  label: "/detecciones\nvision_msgs/Detection2DArray"
+}

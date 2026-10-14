@@ -5,10 +5,7 @@
 % corresponding entries were exported to references.bib. Claims that would
 % require a source not currently available in the library are marked with
 % % TODO comments. Pending design decisions use visible \todo{...}
-% placeholders (a \providecommand fallback is included so the chapter
-% compiles standalone).
-
-\providecommand{\todo}[1]{\textbf{[TODO: #1]}}
+% placeholders (definidos en commands.tex, cargado desde main.tex).
 
 \chapter{Antecedentes y trabajos relacionados}
 \label{chap:background}
@@ -77,7 +74,21 @@ resoluciones de entrada más altas o cuando la precisión reducida acelera la
 inferencia \cite{szegedi2026}. Cada etapa puede ser, por lo tanto,
 computacionalmente significativa, y la forma en que las etapas se
 conectan---dentro de un proceso o a través de varios--- es precisamente la
-pregunta arquitectónica que esta tesis investiga.
+pregunta arquitectónica que esta memoria investiga.
+
+% TODO: fuente/atribución si la figura se reproduce de un trabajo publicado.
+\begin{figure}[H]
+  \centering
+  \includegraphics[height=0.5\textheight]{assets/figures/chapter-2/ciclo-CV.png}
+  \caption[Cadena de procesamiento de visión por computador embebida.]{Cadena
+  de procesamiento de visión por computador embebida. Las
+  imágenes se adquieren desde un sensor o desde almacenamiento, se
+  preprocesan al formato esperado por el modelo, se pasan por el modelo para
+  la inferencia y se postprocesan para producir las salidas de la aplicación.
+  La forma en que estas etapas se conectan (dentro de un único proceso o
+  entre varios) es la variable arquitectónica bajo estudio en esta memoria.}
+  \label{fig:cadena-vision-computador}
+\end{figure}
 
 \section{Arquitectura de NVIDIA Jetson}
 \label{sec:jetson}
@@ -85,21 +96,50 @@ pregunta arquitectónica que esta tesis investiga.
 La familia NVIDIA Jetson comprende módulos de computación embebida que
 integran núcleos de CPU Arm, una GPU de NVIDIA y memoria en una sola placa,
 diseñados para cargas de trabajo de robótica e inteligencia artificial en
-el borde \cite{scalcon2024}. Esta tesis utiliza la Jetson Orin Nano, un
-miembro de la generación Orin de módulos. Aquí se describen solo las
-características de hardware relevantes para los experimentos; la
-configuración exacta del módulo se documenta en el Capítulo~3.
+el borde \cite{scalcon2024}. Esta memoria utiliza la Jetson Orin Nano Super,
+la configuración de kit de desarrollo (\emph{developer kit}) basada en el módulo
+Jetson Orin Nano de 8~GB. Aquí se describen solo las características de
+hardware relevantes para los experimentos; la configuración exacta del
+módulo se documenta en el Capítulo~3.
 
-La Orin Nano combina una CPU Arm de seis núcleos con una GPU de NVIDIA de la
-generación Ampere que incluye Tensor Cores para las operaciones matriciales
-aceleradas utilizadas en la inferencia de redes neuronales.
-\todo{VERIFY: CPU core count, GPU architecture, and Tensor Core presence
-against the official NVIDIA Jetson Orin Nano datasheet for the specific
-module used.}
+\begin{figure}[H]
+  \centering
+  \figstub[0.5\linewidth]{assets/figures/chapter-2/jetson-orin-nano-module.jpg}
+  \caption[Módulo NVIDIA Jetson Orin Nano.]{Módulo NVIDIA Jetson Orin
+  Nano. El módulo integra en una única
+  placa los núcleos de CPU Arm, la GPU de arquitectura Ampere con Tensor
+  Cores y la memoria unificada; se monta sobre una placa portadora que expone
+  los conectores de entrada y salida. Fotografía: NVIDIA Corporation.}
+  \label{fig:jetson-orin-nano-module}
+\end{figure}
+
+El módulo se acopla a la placa portadora de referencia para formar el kit de
+desarrollo (Figura~\ref{fig:jetson-orin-nano-super-devkit}), que constituye
+la plataforma sobre la cual se ejecutan los experimentos de esta memoria.
+
+\begin{figure}[H]
+  \centering
+  \figstub[\linewidth]{assets/figures/chapter-2/jetson-orin-nano-super-devkit.jpg}
+  \caption[Kit de desarrollo NVIDIA Jetson Orin Nano Super.]{Kit de
+  desarrollo NVIDIA Jetson Orin Nano Super. El kit comprende
+  el módulo Jetson Orin Nano de 8~GB montado sobre la placa portadora de
+  referencia, con disipador y ventilador, y expone los conectores de entrada
+  y salida utilizados en los experimentos: dos conectores de cámara MIPI
+  CSI-2, cuatro puertos USB 3.2 Gen2 Tipo~A, Ethernet Gigabit, DisplayPort y
+  ranuras M.2. Fotografía: NVIDIA Corporation.}
+  \label{fig:jetson-orin-nano-super-devkit}
+\end{figure}
+
+El módulo Jetson Orin Nano de 8~GB combina una CPU Arm de seis núcleos
+Cortex-A78AE con una GPU de NVIDIA de arquitectura Ampere que incluye 1024
+núcleos CUDA y 32 Tensor Cores, las unidades dedicadas a las operaciones
+matriciales aceleradas utilizadas en la inferencia de redes neuronales; su
+rendimiento de inferencia alcanza hasta 67~TOPS \cite{nvidiacorporation2024}.
 Una característica de la plataforma directamente relevante para este estudio
 es su memoria física unificada: la CPU y la GPU acceden a la misma memoria
-LPDDR5 en lugar de memorias separadas de anfitrión y dispositivo.
-\todo{VERIFY: memory type and capacity of the specific module.}
+LPDDR5 de 8~GB, con un bus de 128~bits y un ancho de banda de 102~GB/s, en
+lugar de memorias separadas de anfitrión y dispositivo
+\cite{nvidiacorporation2024}.
 Este diseño de memoria compartida influye en cuán costoso resulta mover
 datos de imágenes entre etapas de procesamiento y entre procesos, lo cual es
 uno de los costos introducidos al distribuir una cadena de procesamiento
@@ -108,32 +148,45 @@ entre múltiples procesos.
 Dos características adicionales de la plataforma importan para la evaluación
 comparativa de rendimiento reproducible. Primero, el módulo opera en modos
 de energía seleccionables que comprometen rendimiento con consumo de
-energía; las evaluaciones publicadas de la familia Orin distinguen
-explícitamente estas configuraciones---por ejemplo, la configuración de
-15~W de la Orin Nano--- al informar las tasas de fotogramas alcanzables de
-análisis de video \cite{scalcon2024}, por lo que el modo de energía debe
-fijarse y documentarse para todos los experimentos. Segundo, las cargas de
-trabajo sostenidas están sujetas a efectos térmicos: bajo carga de
-inferencia continua, la temperatura del dispositivo aumenta de manera
-medible y debe monitorearse al caracterizar el rendimiento \cite{zequn2026}.
-La configuración de enfriamiento se fija y documenta, por lo tanto, de la
-misma manera.
-% TODO: cite the official NVIDIA Jetson Orin Nano datasheet / developer
-% documentation for power modes and thermal behavior; not currently in the
-% library.
+energía; el rango de potencia configurable del módulo va de 7~W a 25~W
+\cite{nvidiacorporation2024}, y las evaluaciones publicadas de la familia
+Orin distinguen explícitamente estas configuraciones---por ejemplo, la
+configuración de 15~W de la Orin Nano--- al informar las tasas de fotogramas
+alcanzables de análisis de video \cite{scalcon2024}, por lo que el modo de
+energía debe fijarse y documentarse para todos los experimentos. Segundo,
+las cargas de trabajo sostenidas están sujetas a efectos térmicos: bajo
+carga de inferencia continua, la temperatura del dispositivo aumenta de
+manera medible y debe monitorearse al caracterizar el rendimiento
+\cite{zequn2026}. La configuración de enfriamiento se fija y documenta, por
+lo tanto, de la misma manera; el kit de desarrollo disipa el calor del
+módulo mediante un disipador con ventilador \cite{nvidiacorporation2024}.
 
 El entorno de software para las plataformas Jetson lo proporciona JetPack,
 un paquete que incluye el sistema operativo Linux, las bibliotecas de
 cómputo en GPU CUDA y bibliotecas de inferencia acelerada tales como
 TensorRT \cite{szegedi2026, zequn2026}. Las versiones exactas utilizadas en
-esta tesis se registran en el Capítulo~3.
+esta memoria se registran en el Capítulo~3.
+
+% TODO: fuente/atribución si el diagrama se adapta de la documentación de NVIDIA.
+\begin{figure}[H]
+  \centering
+  \figstub[0.85\linewidth]{assets/figures/jetson-hardware-software-stack.pdf}
+  \caption[Stack de hardware y software de la plataforma Jetson.]{Stack
+  de hardware y software de la plataforma Jetson. Sobre el
+  System-on-Chip (CPU Arm, GPU y memoria unificada compartida por ambos) se
+  disponen el sistema operativo Linux incluido en JetPack, las bibliotecas de
+  cómputo en GPU (CUDA y bibliotecas asociadas) y las bibliotecas de
+  inferencia acelerada como TensorRT, sobre las cuales se ejecuta la
+  aplicación de visión por computador.}
+  \label{fig:jetson-stack}
+\end{figure}
 
 \section{Arquitectura de ROS 2}
 \label{sec:ros2}
 
 ROS~2 es un framework de código abierto para desarrollar software de robots
 como una colección distribuida de procesos cooperantes
-\cite{macenski2022,zotero-item-9}. Sus elementos arquitectónicos son los
+\cite{macenski2022,rosjazzydocs}. Sus elementos arquitectónicos son los
 nodos, los tópicos y los mensajes.
 
 Un \emph{nodo} es un proceso que encapsula una pieza coherente de
@@ -144,7 +197,18 @@ suscribiéndose a \emph{tópicos}, que son buses nombrados que transportan
 cada nodo suscriptor a ese tópico recibe su propia copia del mensaje. Los
 tipos de mensaje se definen de manera declarativa y existen tipos estándar
 para los datos de imágenes utilizados por las aplicaciones de visión por
-computador \cite{macenski2022, zotero-item-9}.
+computador \cite{macenski2022, rosjazzydocs}.
+
+\begin{figure}[H]
+  \centering
+  \figstub{assets/figures/ros2-nodos-topico.pdf}
+  \caption[Arquitectura basada en nodos de ROS~2.]{Arquitectura basada
+  en nodos de ROS~2. Cada nodo encapsula una
+  funcionalidad; los nodos intercambian datos publicando en tópicos nombrados
+  y suscribiéndose a ellos. Un nodo publicador escribe un mensaje tipado en el
+  tópico y cada nodo suscriptor recibe su propia copia de ese mensaje.}
+  \label{fig:ros2-nodos-topico}
+\end{figure}
 
 Un nodo ejecuta la lógica de aplicación en \emph{callbacks} (funciones de
 retrollamada): funciones invocadas en respuesta a eventos como la llegada de
@@ -162,15 +226,28 @@ del rendimiento de un nodo \cite{macenski2023, casini2026}. La configuración
 del ejecutor constituye, por lo tanto, parte de la configuración
 arquitectónica bajo estudio.
 
+\begin{figure}[H]
+  \centering
+  \figstub[0.90\linewidth]{assets/figures/ros2-ejecutores-callbacks.pdf}
+  \caption[Modelo de callbacks y ejecutores en ROS~2.]{Modelo de callbacks
+  y ejecutores en ROS~2. Los callbacks se
+  encolan al producirse un evento, como la llegada de un mensaje o la
+  expiración de un temporizador, y el ejecutor se encarga de tomarlos de la
+  cola y ejecutarlos. Un ejecutor de un solo hilo procesa los callbacks
+  secuencialmente, mientras que un ejecutor multihilo puede ejecutarlos de
+  manera concurrente.}
+  \label{fig:ros2-ejecutores-callbacks}
+\end{figure}
+
 ROS~2 ofrece varias bibliotecas cliente para diferentes lenguajes de
-programación. Esta tesis utiliza rclpy, la biblioteca cliente de Python. La
+programación. Este trabajo utiliza rclpy, la biblioteca cliente de Python. La
 mayoría de los usuarios interactúa con ROS~2 exclusivamente a través de tales
 bibliotecas cliente, que proporcionan las APIs núcleo de comunicación y
 descansan sobre capas inferiores comunes: una biblioteca intermedia en C,
 rcl, que proporciona funcionalidad compartida por todas las bibliotecas
 cliente, y por debajo de ella la capa de abstracción rmw (ROS MiddleWare), a
 través de la cual se selecciona la implementación de comunicación
-subyacente \cite{macenski2022, zotero-item-9}. Esta estratificación es
+subyacente \cite{macenski2022, rosjazzydocs}. Esta estratificación es
 relevante para la interpretación de las mediciones: el trabajo de perfilado
 sobre la pila de C++ ha mostrado que una fracción significativa de la
 latencia de extremo a extremo puede originarse por encima del transporte
@@ -179,13 +256,26 @@ biblioteca cliente \cite{kronauer2021, kamiya2025}, de modo que el sobrecosto ob
 ROS~2 en Python puede originarse en las capas de la biblioteca cliente y de
 serialización, en lugar de en el transporte únicamente.
 
+\begin{figure}[H]
+  \centering
+  \figstub[0.90\linewidth]{assets/figures/ros2-software-stack.pdf}
+  \caption[Stack de software de ROS~2.]{Stack de software de ROS~2. Las
+  aplicaciones se implementan sobre
+  una biblioteca cliente según el lenguaje de programación (por ejemplo,
+  rclpy para Python); todas las bibliotecas cliente comparten la biblioteca
+  intermedia en C, rcl, y descansan sobre la capa de abstracción rmw, a través
+  de la cual se selecciona la implementación de comunicación (middleware DDS)
+  subyacente.}
+  \label{fig:ros2-software-stack}
+\end{figure}
+
 Finalmente, ROS~2 soporta nodos componibles: múltiples nodos cargados en un
 único proceso, que pueden comunicarse mediante mecanismos intraproceso que
 evitan la serialización y las copias \cite{macenski2023}. La composición es
 el patrón de diseño recomendado de ROS~2 precisamente porque mitiga los
 costos del modo multiproceso predeterminado \cite{macenski2022,macenski2023}.
 Los nodos componibles quedan, sin embargo, explícitamente excluidos del
-alcance de esta tesis (Sección~\ref{sec:scope}): el objeto de estudio es la
+alcance de esta memoria (Sección~\ref{sec:scope}): el objeto de estudio es la
 arquitectura ordinaria de nodos multiproceso misma, y la composición se
 discute como trabajo futuro en el Capítulo~6.
 
@@ -206,7 +296,7 @@ middleware basado en DDS está hoy extendido en la robótica, respaldando
 aplicaciones desde la coordinación multirobot hasta el procesamiento de
 sensores en tiempo real \cite{gambo2025}.
 
-Dos aspectos de este diseño son directamente relevantes para esta tesis.
+Dos aspectos de este diseño son directamente relevantes para este trabajo.
 Primero, DDS expone políticas de calidad de servicio (QoS) que determinan
 las garantías de entrega y el comportamiento de almacenamiento en búfer: la
 confiabilidad (\emph{best-effort} o \emph{reliable}), la durabilidad (p.
@@ -214,26 +304,39 @@ ej., \emph{volatile} frente a \emph{transient-local}), la configuración del
 historial (colas \emph{keep-last} de una profundidad dada o \emph{keep-all})
 y políticas adicionales como \emph{deadline}, \emph{lifespan} y
 \emph{liveliness}, orientadas al diseño de sistemas de tiempo real
-\cite{macenski2022,zotero-item-9}. La configuración de QoS afecta de manera
+\cite{macenski2022,rosjazzydocs}. La configuración de QoS afecta de manera
 medible la latencia y el uso de recursos: habilitar la entrega confiable y
 las funciones de DDS-Security puede aumentar la latencia sustancialmente, y
 una profundidad de historial reducida combinada con la entrega confiable
 puede causar fallas de retransmisión \cite{fernandez2020,kronauer2021}. Por
 esta razón, se utiliza una única configuración de QoS fija a lo largo de los
-experimentos de esta tesis. Segundo, la capa de abstracción rmw permite
+experimentos de esta memoria. Segundo, la capa de abstracción rmw permite
 seleccionar diferentes implementaciones de DDS en tiempo de ejecución
 \cite{maruyama2016, macenski2022}, y la elección afecta de manera medible el
 rendimiento de la comunicación de forma dependiente del hardware
 \cite{maruyama2016, kronauer2021, zhang2024}. La implementación se fija
 igualmente para todos los experimentos, dado que comparar middlewares está
-fuera del alcance de esta tesis.
+fuera del alcance de esta memoria.
 
 Cuando un mensaje viaja entre dos nodos en procesos separados, atraviesa una
 ruta que incluye la serialización en el lado del publicador, el transporte
 por sockets o memoria compartida, el almacenamiento en búfer en las colas del
 suscriptor, la deserialización y, finalmente, la entrega del callback al
 ejecutor. Cada paso consume tiempo y memoria, y cada uno ha sido cuantificado
-en la literatura. El perfilado de la pila de llamadas de ROS~2 muestra que
+en la literatura.
+
+\begin{figure}[H]
+  \centering
+  \figstub{assets/figures/ros2-ruta-mensaje.pdf}
+  \caption[Ruta de un mensaje entre dos nodos de ROS~2 en procesos separados.]{Ruta
+  de un mensaje entre dos nodos de ROS~2 en procesos separados.
+  El publicador serializa el mensaje, que viaja por el transporte (sockets o
+  memoria compartida); el suscriptor lo almacena en búfer en sus colas, lo
+  deserializa y finalmente lo entrega al ejecutor como callback. Cada etapa
+  consume tiempo y, para las cargas útiles grandes, contribuye de forma
+  medible a la latencia total de la comunicación.}
+  \label{fig:ros2-ruta-mensaje}
+\end{figure} El perfilado de la pila de llamadas de ROS~2 muestra que
 el sobrecosto con respecto a la comunicación DDS directa depende del tamaño
 de la carga útil: para mensajes pequeños, la latencia está dominada por el
 propio middleware DDS y por el retardo entre la notificación de DDS a la
@@ -257,13 +360,13 @@ cargas útiles canónicas de este tamaño \cite{macenski2022, macenski2023}. Par
 tamaño crece con la resolución, cabe esperar que el costo por mensaje de la
 serialización y de las copias crezca en consecuencia; si esto se traduce en
 una penalización medible de extremo a extremo a las resoluciones probadas es
-una pregunta empírica que los experimentos de esta tesis están diseñados
+una pregunta empírica que los experimentos de esta memoria están diseñados
 para responder.
 
 \section{Carga de trabajo de visión por computador}
 \label{sec:workload}
 
-La tesis utiliza una única carga de trabajo representativa de visión por
+La memoria utiliza una única carga de trabajo representativa de visión por
 computador: una cadena de procesamiento de detección de objetos que procesa
 un flujo de imágenes y produce detecciones con cuadros delimitadores. La
 detección de objetos se eligió porque es una carga de trabajo de percepción
@@ -293,7 +396,7 @@ la única diferencia primaria entre las condiciones experimentales.
 \section{Métricas de rendimiento}
 \label{sec:metrics}
 
-Esta sección define las métricas de rendimiento utilizadas en la tesis. El
+Esta sección define las métricas de rendimiento utilizadas en la memoria. El
 conjunto sigue la práctica común de la literatura de rendimiento de ROS~2,
 donde la latencia de extremo a extremo se descompone en componentes de
 comunicación, cómputo e inactividad \cite{betz2023a} y se informa junto con
@@ -304,7 +407,7 @@ la tasa de procesamiento y la utilización de recursos
 
 La latencia es el tiempo entre la entrada de un dato a la cadena de
 procesamiento y la generación de la salida correspondiente---para las
-cadenas de esta tesis, el tiempo transcurrido desde el momento en que un
+cadenas de esta memoria, el tiempo transcurrido desde el momento en que un
 fotograma se entrega a la primera etapa de procesamiento hasta que el
 resultado completamente postprocesado de ese mismo fotograma está
 disponible. La latencia es una cantidad distribucional: siguiendo la
@@ -353,7 +456,7 @@ se trata como una extensión opcional y no como un requisito.
 \section{Trabajos relacionados}
 \label{sec:related-work}
 
-La literatura relevante para esta tesis puede organizarse en cinco
+La literatura relevante para esta memoria puede organizarse en cinco
 categorías.
 
 \paragraph{Benchmarks de comunicación de ROS~2.}
@@ -402,7 +505,7 @@ estado de la adopción de ROS~2, documentando tanto el cumplimiento de las
 expectativas de los usuarios por parte del middleware como las razones que
 retienen a los equipos de migrar \cite{portugal2025}. Estos estudios se
 refieren a la selección y adopción de middleware y no a la arquitectura de
-una aplicación única en un único anfitrión, que es el foco de esta tesis.
+una aplicación única en un único anfitrión, que es el foco de este trabajo.
 
 \paragraph{Benchmarks de visión por computador embebida.}
 Otra línea de trabajo evalúa de manera comparativa la visión por computador
@@ -434,12 +537,12 @@ las tasas de fotogramas alcanzables de análisis de video entre modelos Orin
 y configuraciones de potencia \cite{scalcon2024}, y el comportamiento de
 potencia, energía y temperatura bajo carga sostenida de redes neuronales
 \cite{zequn2026}. Estos estudios informan los controles experimentales de
-esta tesis---modo de energía fijo, configuración de enfriamiento fija,
+esta memoria---modo de energía fijo, configuración de enfriamiento fija,
 calentamiento y monitoreo de temperatura--- más que su pregunta de
 investigación de manera directa.
 
 \paragraph{Sobrecosto de comunicación de ROS~2 en aplicaciones.}
-La categoría más cercana a esta tesis comprende estudios que investigan el
+La categoría más cercana a esta memoria comprende estudios que investigan el
 sobrecosto que ROS~2 introduce en sistemas realistas. Macenski et al.\
 evaluaron la composición de nodos en sistemas robóticos completos,
 informando ahorros de 28\% de CPU y 33\% de RAM al componer una pila de
@@ -491,7 +594,7 @@ microservicios, por su parte, no es específica de la robótica y no involucra
 ROS~2, cargas útiles de imagen ni hardware embebido \cite{tapia2020,
 blinowski2022, felisberto2024}.
 
-Lo que queda por caracterizar---y lo que esta tesis mide--- es el costo en
+Lo que queda por caracterizar---y lo que esta memoria mide--- es el costo en
 rendimiento de particionar una única cadena de procesamiento de visión por
 computador en Python, funcionalmente equivalente, entre nodos rclpy de
 ROS~2 en una única plataforma embebida, en función del grado de

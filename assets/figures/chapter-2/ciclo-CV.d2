@@ -1,0 +1,93 @@
+# Ciclo de procesamiento de un sistema de visión por computador.
+# Mismas etapas que la cadena lógica, pero dispuestas de arriba hacia abajo
+# y con el lazo cerrado: tras la última etapa el flujo vuelve a la primera,
+# de modo que el sistema opera como un ciclo secuencial continuo.
+#
+# Las etapas se fijan con `top`/`left` para que queden perfectamente
+# alineadas en una columna. El retorno se traza con nodos de paso invisibles
+# (wp1..wp4) que fuerzan el recorrido: sale por la cara inferior de
+# Postprocesamiento, baja, cruza a la derecha, sube por el costado derecho,
+# cruza arriba y entra por la cara superior de Adquisición. Solo la última
+# arista lleva punta de flecha; las intermedias la omiten para que el lazo
+# se lea como una línea continua.
+
+direction: down
+
+# Este diagrama usa `top`/`left`, que solo TALA respeta; fijamos el motor
+# en el propio archivo para que se reproduzca igual sin pasar banderas.
+vars: {
+  d2-config: {
+    layout-engine: tala
+  }
+}
+
+classes: {
+  etapa: {
+    shape: rectangle
+    style: {
+      fill: "#e8eef7"
+      stroke: "#2f4b7c"
+      stroke-width: 2
+      border-radius: 8
+      font-size: 24
+      bold: true
+    }
+  }
+  flujo: {
+    style: {
+      stroke: "#2f4b7c"
+      stroke-width: 2
+    }
+  }
+  invisible: {
+    style: {
+      stroke-width: 0
+      fill: transparent
+    }
+  }
+}
+
+adquisicion: "Adquisición" {
+  class: etapa
+  width: 460
+  height: 84
+  top: 40
+  left: 120
+}
+preprocesamiento: "Preprocesamiento" {
+  class: etapa
+  width: 460
+  height: 84
+  top: 200
+  left: 120
+}
+inferencia: "Inferencia" {
+  class: etapa
+  width: 460
+  height: 84
+  top: 360
+  left: 120
+}
+postprocesamiento: "Postprocesamiento" {
+  class: etapa
+  width: 460
+  height: 84
+  top: 520
+  left: 120
+}
+
+# Nodos de paso invisibles que definen el trazado del lazo de retorno.
+wp1: "" { class: invisible; width: 1; height: 1; top: 652; left: 349 }  # bajo Postprocesamiento
+wp2: "" { class: invisible; width: 1; height: 1; top: 652; left: 719 }  # esquina inferior derecha
+wp3: "" { class: invisible; width: 1; height: 1; top: 8; left: 719 }    # esquina superior derecha
+wp4: "" { class: invisible; width: 1; height: 1; top: 8; left: 349 }    # sobre Adquisición
+
+adquisicion -> preprocesamiento: { class: flujo }
+preprocesamiento -> inferencia: { class: flujo }
+inferencia -> postprocesamiento: { class: flujo }
+
+postprocesamiento -> wp1: { class: flujo; target-arrowhead.shape: none }
+wp1 -> wp2: { class: flujo; target-arrowhead.shape: none }
+wp2 -> wp3: { class: flujo; target-arrowhead.shape: none }
+wp3 -> wp4: { class: flujo; target-arrowhead.shape: none }
+wp4 -> adquisicion: { class: flujo }
