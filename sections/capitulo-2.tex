@@ -34,7 +34,7 @@ precisión a cambio de una mayor velocidad de procesamiento.
 En la práctica, las aplicaciones embebidas en tiempo real adoptan de manera
 abrumadora las familias de detectores de una etapa, tales como YOLO, SSD y
 EfficientDet, que son los sujetos estándar de los estudios de despliegue en
-el borde \cite{alqahtani2026, szegedi2026, zequn2026}.
+el borde \cite{alqahtani2026, szegedi2026, tang2026}.
 
 Desplegar tales modelos a bordo de un robot o dispositivo autónomo impone
 restricciones que no aplican al procesamiento fuera de línea o en centros de
@@ -43,9 +43,9 @@ continua bajo plazos de tiempo real o casi tiempo real, dentro de límites
 estrictos de potencia y temperatura, y con los recursos computacionales de
 un procesador embebido en lugar de una estación de trabajo; la inferencia en
 dispositivos de borde debe equilibrar simultáneamente velocidad, energía,
-memoria, temperatura y precisión \cite{zequn2026}. Para satisfacer estas
+memoria, temperatura y precisión \cite{tang2026}. Para satisfacer estas
 restricciones, los profesionales típicamente combinan tres ingredientes
-\cite{xu2025, szegedi2026, zequn2026}. Primero, arquitecturas de redes de
+\cite{xu2025, szegedi2026, tang2026}. Primero, arquitecturas de redes de
 tamaño moderado o comprimidas: las familias de modelos se ofrecen en tamaños
 graduados (p. ej., variantes que van de \emph{nano} a \emph{media}) y
 técnicas como la destilación de conocimiento pueden comprimir un modelo
@@ -53,12 +53,12 @@ docente preciso en un estudiante adecuado para el borde, como se demostró
 para la clasificación de imágenes médicas con despliegue en la propia Orin
 Nano \cite{aalishah2025}. Segundo, precisión numérica reducida: la aritmética
 FP16 e INT8 reduce la latencia, la huella de memoria y la energía a un costo
-moderado en precisión \cite{szegedi2026, zequn2026}. Tercero, entornos de
+moderado en precisión \cite{szegedi2026, tang2026}. Tercero, entornos de
 ejecución de inferencia optimizados por el fabricante que aprovechan los
 aceleradores de GPU de la plataforma; en las plataformas Jetson, TensorRT
 logra de manera consistente la latencia de inferencia más baja y una energía
 sustancialmente menor por carga de trabajo que los frameworks no optimizados
-\cite{szegedi2026, zequn2026}.
+\cite{szegedi2026, tang2026}.
 
 De manera independiente del motor de inferencia, una aplicación de visión
 por computador embebida presenta una estructura característica de cadena de
@@ -157,14 +157,14 @@ energía debe fijarse y documentarse para todos los experimentos. Segundo,
 las cargas de trabajo sostenidas están sujetas a efectos térmicos: bajo
 carga de inferencia continua, la temperatura del dispositivo aumenta de
 manera medible y debe monitorearse al caracterizar el rendimiento
-\cite{zequn2026}. La configuración de enfriamiento se fija y documenta, por
+\cite{tang2026}. La configuración de enfriamiento se fija y documenta, por
 lo tanto, de la misma manera; el kit de desarrollo disipa el calor del
 módulo mediante un disipador con ventilador \cite{nvidiacorporation2024}.
 
 El entorno de software para las plataformas Jetson lo proporciona JetPack,
 un paquete que incluye el sistema operativo Linux, las bibliotecas de
 cómputo en GPU CUDA y bibliotecas de inferencia acelerada tales como
-TensorRT \cite{szegedi2026, zequn2026}. Las versiones exactas utilizadas en
+TensorRT \cite{szegedi2026, tang2026}. Las versiones exactas utilizadas en
 esta memoria se registran en el Capítulo~3.
 
 % TODO: fuente/atribución si el diagrama se adapta de la documentación de NVIDIA.
@@ -373,7 +373,7 @@ detección de objetos se eligió porque es una carga de trabajo de percepción
 representativa y bien estudiada para la plataforma objetivo: las
 evaluaciones publicadas demuestran la viabilidad de la detección de objetos
 en tiempo real en la Orin Nano con modelos de las familias YOLO, SSD y
-EfficientDet \cite{scalcon2024, alqahtani2026, szegedi2026, zequn2026}. El
+EfficientDet \cite{scalcon2024, alqahtani2026, szegedi2026, tang2026}. El
 modelo de red neuronal exacto se seleccionará de acuerdo con los siguientes
 criterios:
 
@@ -447,7 +447,7 @@ Si es posible una medición confiable y reproducible con el hardware
 disponible, se registrarán las siguientes cantidades: potencia promedio,
 potencia máxima, energía por fotograma procesado y rendimiento por vatio,
 reflejando las métricas relacionadas con potencia utilizadas en los estudios
-de caracterización de la Orin Nano \cite{zequn2026}. La medición de potencia
+de caracterización de la Orin Nano \cite{tang2026}. La medición de potencia
 se trata como una extensión opcional y no como un requisito.
 % TODO: cite Jetson power-measurement methods (e.g., on-board power rails
 % / tegrastats) if power measurement is included; official documentation
@@ -519,7 +519,7 @@ modelos, lenguajes de programación, frameworks de inferencia y precisiones
 numéricas en una Orin Nano frente a una estación de trabajo de escritorio
 \cite{szegedi2026}, y existen caracterizaciones comparables del
 comportamiento de potencia, energía y temperatura bajo inferencia sostenida
-\cite{zequn2026}. Scalcon et al.\ evaluaron dispositivos de la familia Orin
+\cite{tang2026}. Scalcon et al.\ evaluaron dispositivos de la familia Orin
 para monitoreo de video con inteligencia artificial, informando la
 utilización de CPU, GPU y RAM para una carga de trabajo de vigilancia
 \cite{scalcon2024}. Más allá de los estudios de modelo único, el trabajo de
@@ -536,7 +536,7 @@ Los estudios de esta categoría caracterizan las propias plataformas Jetson:
 las tasas de fotogramas alcanzables de análisis de video entre modelos Orin
 y configuraciones de potencia \cite{scalcon2024}, y el comportamiento de
 potencia, energía y temperatura bajo carga sostenida de redes neuronales
-\cite{zequn2026}. Estos estudios informan los controles experimentales de
+\cite{tang2026}. Estos estudios informan los controles experimentales de
 esta memoria---modo de energía fijo, configuración de enfriamiento fija,
 calentamiento y monitoreo de temperatura--- más que su pregunta de
 investigación de manera directa.
@@ -585,7 +585,7 @@ lugar de medir, el costo de esa arquitectura frente a una línea base
 monolítica \cite{macenski2023, kamiya2025, luo2025}. Los benchmarks de
 inferencia en plataformas Jetson caracterizan el cómputo dominante pero
 asumen una aplicación monolítica y dejan así inexplorada la dimensión de
-comunicación \cite{szegedi2026, zequn2026, alqahtani2026, scalcon2024}. Los
+comunicación \cite{szegedi2026, tang2026, alqahtani2026, scalcon2024}. Los
 estudios de pila completa, como las evaluaciones de Autoware, miden
 sistemas reales pero confunden innumerables factores algorítmicos y
 arquitectónicos, sin una referencia equivalente de proceso único
