@@ -170,11 +170,10 @@ esta memoria se registran en el Capítulo~3.
 % TODO: fuente/atribución si el diagrama se adapta de la documentación de NVIDIA.
 \begin{figure}[H]
   \centering
-  \figstub[0.85\linewidth]{assets/figures/jetson-hardware-software-stack.pdf}
-  \caption[Stack de hardware y software de la plataforma Jetson.]{Stack
-  de hardware y software de la plataforma Jetson. Sobre el
-  System-on-Chip (CPU Arm, GPU y memoria unificada compartida por ambos) se
-  disponen el sistema operativo Linux incluido en JetPack, las bibliotecas de
+  \includegraphics[width=\linewidth]{assets/figures/chapter-2/jetpack-stack.png}
+  \caption[Stack de software de la plataforma Jetson.]{Stack
+  de software de la plataforma Jetson. Sobre el
+  SoC se disponen el sistema operativo Linux incluido en JetPack, las bibliotecas de
   cómputo en GPU (CUDA y bibliotecas asociadas) y las bibliotecas de
   inferencia acelerada como TensorRT, sobre las cuales se ejecuta la
   aplicación de visión por computador.}
@@ -199,14 +198,19 @@ tipos de mensaje se definen de manera declarativa y existen tipos estándar
 para los datos de imágenes utilizados por las aplicaciones de visión por
 computador \cite{macenski2022, rosjazzydocs}.
 
+% Fuente: ros2_documentation (rolling), archivo
+% source/ROS-Framework/interfaces/topics/Understanding-ROS2-Topics/images/
+% Topic-MultiplePublisherandMultipleSubscriber.gif; licencia CC BY 4.0.
+% Adaptación: se eliminó el texto explicativo en inglés de la imagen original.
 \begin{figure}[H]
   \centering
-  \figstub{assets/figures/ros2-nodos-topico.pdf}
+  \figstub{assets/figures/ros2-nodos-topico.png}
   \caption[Arquitectura basada en nodos de ROS~2.]{Arquitectura basada
   en nodos de ROS~2. Cada nodo encapsula una
   funcionalidad; los nodos intercambian datos publicando en tópicos nombrados
   y suscribiéndose a ellos. Un nodo publicador escribe un mensaje tipado en el
-  tópico y cada nodo suscriptor recibe su propia copia de ese mensaje.}
+  tópico y cada nodo suscriptor recibe su propia copia de ese mensaje. Fuente:
+  documentación oficial de ROS~2 (licencia CC BY 4.0), adaptada.}
   \label{fig:ros2-nodos-topico}
 \end{figure}
 
@@ -226,16 +230,20 @@ del rendimiento de un nodo \cite{macenski2023, casini2026}. La configuración
 del ejecutor constituye, por lo tanto, parte de la configuración
 arquitectónica bajo estudio.
 
+% Fuente: ros2_documentation (rolling), archivo
+% source/ROS-Framework/client-libraries/About-Executors/images/
+% executors_basic_principle.png; licencia CC BY 4.0.
 \begin{figure}[H]
   \centering
-  \figstub[0.90\linewidth]{assets/figures/ros2-ejecutores-callbacks.pdf}
+  \figstub[0.90\linewidth]{assets/figures/ros2-ejecutores-callbacks.png}
   \caption[Modelo de callbacks y ejecutores en ROS~2.]{Modelo de callbacks
   y ejecutores en ROS~2. Los callbacks se
   encolan al producirse un evento, como la llegada de un mensaje o la
   expiración de un temporizador, y el ejecutor se encarga de tomarlos de la
   cola y ejecutarlos. Un ejecutor de un solo hilo procesa los callbacks
   secuencialmente, mientras que un ejecutor multihilo puede ejecutarlos de
-  manera concurrente.}
+  manera concurrente. Fuente: documentación oficial de ROS~2 (licencia
+  CC BY 4.0).}
   \label{fig:ros2-ejecutores-callbacks}
 \end{figure}
 
@@ -256,16 +264,19 @@ biblioteca cliente \cite{kronauer2021, kamiya2025}, de modo que el sobrecosto ob
 ROS~2 en Python puede originarse en las capas de la biblioteca cliente y de
 serialización, en lugar de en el transporte únicamente.
 
+% Fuente: ros2_documentation (rolling), archivo
+% source/ROS-Framework/client-libraries/About-Internal-Interfaces/images/
+% ros_client_library_api_stack.png; licencia CC BY 4.0.
 \begin{figure}[H]
   \centering
-  \figstub[0.90\linewidth]{assets/figures/ros2-software-stack.pdf}
+  \figstub[0.90\linewidth]{assets/figures/ros2-software-stack.png}
   \caption[Stack de software de ROS~2.]{Stack de software de ROS~2. Las
   aplicaciones se implementan sobre
   una biblioteca cliente según el lenguaje de programación (por ejemplo,
   rclpy para Python); todas las bibliotecas cliente comparten la biblioteca
   intermedia en C, rcl, y descansan sobre la capa de abstracción rmw, a través
   de la cual se selecciona la implementación de comunicación (middleware DDS)
-  subyacente.}
+  subyacente. Fuente: documentación oficial de ROS~2 (licencia CC BY 4.0).}
   \label{fig:ros2-software-stack}
 \end{figure}
 
@@ -319,22 +330,31 @@ igualmente para todos los experimentos, dado que comparar middlewares está
 fuera del alcance de esta memoria.
 
 Cuando un mensaje viaja entre dos nodos en procesos separados, atraviesa una
-ruta que incluye la serialización en el lado del publicador, el transporte
-por sockets o memoria compartida, el almacenamiento en búfer en las colas del
-suscriptor, la deserialización y, finalmente, la entrega del callback al
-ejecutor. Cada paso consume tiempo y memoria, y cada uno ha sido cuantificado
-en la literatura.
+ruta que incluye la serialización del mensaje en una muestra del middleware,
+su almacenamiento en la historia de escritura del publicador, el transporte
+por sockets o memoria compartida, el almacenamiento en la historia de lectura
+del suscriptor, la deserialización y, finalmente, la entrega del callback al
+ejecutor. Tanto las historias de escritura y de lectura como el transporte son
+gestionados por el middleware y no por el código del nodo \cite{rosjazzydocs};
+cada paso consume tiempo y memoria, y cada uno ha sido cuantificado en la
+literatura.
 
 \begin{figure}[H]
   \centering
-  \figstub{assets/figures/ros2-ruta-mensaje.pdf}
+  \figstub{assets/figures/ros2-ruta-mensaje.png}
   \caption[Ruta de un mensaje entre dos nodos de ROS~2 en procesos separados.]{Ruta
   de un mensaje entre dos nodos de ROS~2 en procesos separados.
-  El publicador serializa el mensaje, que viaja por el transporte (sockets o
-  memoria compartida); el suscriptor lo almacena en búfer en sus colas, lo
-  deserializa y finalmente lo entrega al ejecutor como callback. Cada etapa
-  consume tiempo y, para las cargas útiles grandes, contribuye de forma
-  medible a la latencia total de la comunicación.}
+  El publicador serializa el mensaje en una muestra del middleware, que se
+  almacena en la historia de escritura de su DataWriter (búfer de salida); el
+  transporte la entrega a la historia de lectura del DataReader correspondiente
+  (búfer de entrada). Ambas historias son mantenidas por el middleware y su
+  tamaño y retención los fija la QoS, de modo que ni la profundidad efectiva
+  del búfer ni la retención de muestras para suscriptores que se conectan
+  tarde dependen del código del nodo. El suscriptor toma la muestra tras el
+  aviso de disponibilidad que el middleware entrega a la biblioteca cliente,
+  la deserializa en un mensaje ROS y la entrega al ejecutor como callback.
+  Cada etapa consume tiempo y, para las cargas útiles grandes, contribuye de
+  forma medible a la latencia total de la comunicación.}
   \label{fig:ros2-ruta-mensaje}
 \end{figure} El perfilado de la pila de llamadas de ROS~2 muestra que
 el sobrecosto con respecto a la comunicación DDS directa depende del tamaño
