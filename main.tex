@@ -6,12 +6,16 @@
 \usepackage{polyglossia}
 \setdefaultlanguage{spanish}
 
+% csquotes antes de biblatex para que este use sus comillas y citas
+\usepackage[autostyle=true]{csquotes}
+
 \usepackage[backend=biber, style=numeric]{biblatex}
 \addbibresource{referencias.bib}
 \nocite{*}
 
 \usepackage{float} % debe cargarse antes de hyperref
 \usepackage[hidelinks]{hyperref}
+\usepackage{bookmark} % marcadores/outline del PDF; despues de hyperref
 
 \usepackage[toc]{glossaries}
 \makeglossaries
@@ -21,6 +25,11 @@
 \usepackage{graphicx}
 \usepackage{amssymb}
 \usepackage{datetime2} % for debug purposes only remove on final release
+
+\usepackage{siunitx} % magnitudes y unidades (\qty, columnas S)
+\usepackage{booktabs} % reglas de tabla profesionales
+\usepackage{enumitem} % control del espaciado y etiquetas de listas
+\usepackage{microtype} % justificacion, kerning y protrusion
 
 % cleveref debe cargarse despues de amsmath y hyperref
 \usepackage{cleveref}
