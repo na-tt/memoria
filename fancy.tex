@@ -1,0 +1,71 @@
+% fancy.tex
+% Configuración de encabezados, pies y título de capítulo.
+% Se carga una sola vez desde el preámbulo de main.tex con \input{fancy.tex}.
+%
+% Perillas rápidas:
+%   - Separación de la doble línea: los dos \vskip 3pt en \headrule.
+%   - Grosor de las líneas: \headrulewidth.
+%   - Tamaño del encabezado: \footnotesize (cuerpo), \Large (apertura).
+%   - Título del capítulo: \raggedleft (alineación), \Huge (tamaño), \vspace*/\vskip.
+%   - Al cambiar un tamaño del encabezado, ajustar \headheight y \topmargin
+%     según lo que pida fancyhdr en el log.
+
+% Altura del encabezado (debe caber el \Large de la apertura de capítulo).
+\setlength{\headheight}{22pt}
+\addtolength{\topmargin}{-6.5pt} % compensa el \headheight para no mover el texto
+
+% ---------------------------------------------------------------------------
+% Encabezados y pies (estilo de la tesis de referencia)
+% Cuerpo: sección actual en mayúsculas a la izquierda, número de página a la
+% derecha y regla bajo el encabezado. Inicio de capítulo: "Capítulo N" a la
+% izquierda y número de página al pie.
+% ---------------------------------------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\rightmark}
+\fancyhead[R]{\footnotesize\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyhead[L]{\Large\memoriachaphead}%
+  \fancyfoot[R]{\thepage}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\footrulewidth}{0pt}%
+  % Doble línea bajo el encabezado en las páginas que abren capítulo
+  % (numerado o mudo). En el resto del documento la línea es simple.
+  \renewcommand{\headrule}{{%
+    \hrule height \headrulewidth width \headwidth
+    \vskip -\headrulewidth
+    \vskip 3pt
+    \hrule height \headrulewidth width \headwidth
+    \vskip -\headrulewidth
+    \vskip -3pt}}%
+}
+
+\makeatletter
+% \memoriachaphead guarda el texto del encabezado de la página inicial de un
+% capítulo numerado ("Capítulo N"); en los capítulos sin numerar queda vacío.
+\newcommand{\memoriachaphead}{}
+% La marca derecha guarda la sección actual (para el resto del capítulo).
+\renewcommand{\chaptermark}[1]{%
+  \markboth{\@chapapp\ \thechapter}{}%
+  \xdef\memoriachaphead{\@chapapp\ \thechapter}}
+\renewcommand{\sectionmark}[1]{%
+  \markboth{\@chapapp\ \thechapter}%
+          {\MakeUppercase{\ifnum\c@secnumdepth>\z@\thesection. \ \fi #1}}}
+% Capítulos sin numerar (resumen, abstract, índices, bibliografía): encabezado
+% vacío. La doble línea se mantiene porque igual usan el estilo `plain`.
+\let\memoria@schapter\@schapter
+\renewcommand{\@schapter}[1]{\gdef\memoriachaphead{}\markboth{}{}\memoria@schapter{#1}}
+% El cuerpo del capítulo muestra solo el título: la etiqueta "Capítulo N"
+% aparece únicamente en el encabezado de su página inicial.
+\renewcommand{\@makechapterhead}[1]{%
+  \vspace*{50\p@}%
+  {\parindent\z@ \raggedleft \normalfont
+    \interlinepenalty\@M
+    \Huge\bfseries #1\par\nobreak
+    \vskip 40\p@
+  }}
+\makeatother

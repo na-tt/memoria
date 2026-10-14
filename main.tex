@@ -1,6 +1,8 @@
 \documentclass[12pt,a4paper,oneside]{report}
 \usepackage[a4paper,left=25mm,right=25mm,top=30mm,bottom=30mm]{geometry}
-\usepackage[skip=7.5pt plus 2pt minus 1pt, indent=1.5em]{parskip}
+% Sin 'parskip': los párrafos van solo con sangría, como la tesis de referencia.
+% 'indentfirst' sangra también el primer párrafo después de un título.
+\usepackage{indentfirst}
 
 \usepackage{fontspec}    
 \usepackage{polyglossia}
@@ -9,11 +11,12 @@
 % csquotes antes de biblatex para que este use sus comillas y citas
 \usepackage[autostyle=true]{csquotes}
 
-\usepackage[backend=biber, style=numeric]{biblatex}
+\usepackage[backend=biber, style=ieee]{biblatex}
 \addbibresource{referencias.bib}
 \nocite{*}
 
 \usepackage{float} % debe cargarse antes de hyperref
+\usepackage{fancyhdr} % encabezados y pies personalizados
 \usepackage[hidelinks]{hyperref}
 \usepackage{bookmark} % marcadores/outline del PDF; despues de hyperref
 
@@ -23,7 +26,10 @@
 
 
 \usepackage{graphicx}
+\usepackage{amsmath}
 \usepackage{amssymb}
+% Numeración de ecuaciones por sección: (cap.sección.ec), como la referencia.
+\numberwithin{equation}{section}
 \usepackage{datetime2} % for debug purposes only remove on final release
 
 \usepackage{siunitx} % magnitudes y unidades (\qty, columnas S)
@@ -47,6 +53,8 @@
 
 \crefname{equation}{ecuación}{ecuaciones}
 \Crefname{equation}{Ecuación}{Ecuaciones}
+
+\input{fancy.tex}
 
 % Comandos personalizados del documento (\todo, \figstub, ...)
 \input{commands.tex}
