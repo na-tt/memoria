@@ -10,6 +10,7 @@
 \addbibresource{referencias.bib}
 \nocite{*}
 
+\usepackage{float} % debe cargarse antes de hyperref
 \usepackage[hidelinks]{hyperref}
 
 \usepackage[toc]{glossaries}
@@ -18,9 +19,25 @@
 
 
 \usepackage{graphicx}
-\usepackage{float}
 \usepackage{amssymb}
 \usepackage{datetime2} % for debug purposes only remove on final release
+
+% cleveref debe cargarse despues de amsmath y hyperref
+\usepackage{cleveref}
+\crefname{chapter}{capítulo}{capítulos}
+\Crefname{chapter}{Capítulo}{Capítulos}
+
+\crefname{section}{sección}{secciones}
+\Crefname{section}{Sección}{Secciones}
+
+\crefname{figure}{figura}{figuras}
+\Crefname{figure}{Figura}{Figuras}
+
+\crefname{table}{tabla}{tablas}
+\Crefname{table}{Tabla}{Tablas}
+
+\crefname{equation}{ecuación}{ecuaciones}
+\Crefname{equation}{Ecuación}{Ecuaciones}
 
 % Comandos personalizados del documento (\todo, \figstub, ...)
 \input{commands.tex}
