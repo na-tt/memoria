@@ -82,7 +82,7 @@ referencian desde el texto.
 | ID | Pendiente | Inicio | Depende de | Prioridad |
 |---|---|---|---|---|
 | P-01 | Fijar la plataforma experimental | **HECHO** | — | Alta |
-| P-02 | Fijar el entorno de software, DDS, QoS y ejecutor | PARCIAL | P-01 | Alta |
+| P-02 | Fijar el entorno de software, DDS, QoS y ejecutor | **HECHO** | P-01 | Alta |
 | P-03 | Seleccionar la carga de trabajo y el modelo | PARCIAL | P-01, P-02 | Alta |
 | P-04 | Definir las configuraciones de particionamiento | PARCIAL | P-03 | Alta |
 | P-05 | Fijar la matriz experimental y las resoluciones | BLOQUEADO | P-03, P-04 | Alta |
@@ -130,6 +130,15 @@ ventilador por defecto); entrada por archivo de video decodificado
 localmente, sin cámara; temperatura del SoC registrada en todas las
 corridas. La herramienta térmica se fijó en `tegrastats`, pero se escribe
 en §3.8 dentro de P-07. No hubo cambios en `docs/plan.md` ni en el título.
+
+**Nota (2026-10-19).** `nvpmodel -q` en el equipo informa `NV Power Mode:
+MAXN_SUPER` (identificador 2), no un modo de 25 W; los topes efectivos son
+1,728 GHz de CPU, 1,02 GHz de GPU y 3,199 GHz de memoria. Este pendiente no se
+reabre sin decisión del autor, pero la discrepancia debe resolverse antes de
+la campaña: o se fija el modo de 25 W con `nvpmodel -m <id>` y se documenta el
+identificador, o `tab:platform-configuration` y §3.1 pasan a declarar MAXN
+SUPER. §3.2 remite al «modo de energía fijado en la Sección 3.1» para no verse
+afectada por esa decisión.
 
 **Estado previo (contexto histórico).** El capítulo 3 dejaba todos los datos del equipo como
 `\todo{SPECIFY}` (`sections/capitulo-3.tex:18-38`): módulo exacto, RAM,
@@ -185,11 +194,63 @@ ni de módulos Jetson: eso está fuera de alcance (`docs/scope.md` §8).
 
 ### P-02 · Fijar el entorno de software, DDS, QoS y ejecutor
 
-**Estado actual.** §3.2 tiene siete `\todo{SPECIFY}`
-(`sections/capitulo-3.tex:53-66`): sistema operativo, JetPack, distribución de
-ROS 2, implementación de DDS, configuración de QoS, versión de Python y
-versiones de paquetes. §3.5 deja el tipo de ejecutor dentro de un `\todo`
-(`sections/capitulo-3.tex:149-152`). El capítulo 2 explica por qué estas
+**Estado: completado (2026-10-19).** §3.2 se reescribió como tabla
+verificable (`tab:software-environment`) con valores fijados y el comando que
+los verifica en el equipo: JetPack 7.2.1 (`nvidia-jetpack` 7.2.1-b49, Jetson
+Linux 39.2.1, kernel 6.8), Ubuntu 24.04 LTS, ROS 2 Jazzy Jalisco con paquetes
+binarios `arm64`, `rmw_fastrtps_cpp` sobre Fast DDS 2.14.7, CPython 3.12.3,
+depliegue sin contenedores y `tegrastats` como herramienta de monitoreo. Se
+agregó la subsección §3.2.1 (Calidad de servicio, `sec:qos`) con el perfil
+fijo —`RELIABLE`, `VOLATILE`, `KEEP_LAST` con profundidad 1 y
+plazo/vigencia/vivacidad por omisión—, el código `QoSProfile` que lo declara y
+la justificación de cada política y de la alternativa descartada. §3.5 declara
+el ejecutor: `SingleThreadedExecutor` de `rclpy`, grupo de callbacks mutuamente
+exclusivo, una suscripción por nodo, con la razón de descartar el ejecutor
+multihilo. §3.10 incorporó «implementación de DDS y versión», «configuración de
+transporte de DDS», «tipo de ejecutor y grupos de callbacks» y «gobernador de
+frecuencia y frecuencias efectivas». En `main.tex` se agregó `array` y el tipo
+de columna `L` (ancho fijo, alineado a la izquierda, sin sangría ni
+espaciado estirado) para las tablas nuevas. La correspondencia JetPack 7.2.1 /
+Ubuntu 24.04 / Jazzy quedó respaldada con `nvidiacorporation2026jetpack`,
+`rep2000` y `rosjazzydocs`.
+
+**Verificación diferida (trasladada a P-11).**
+
+- `ros-jazzy-*` 7.1.x, `ros-jazzy-fastrtps` 2.14.7 y las versiones instaladas de
+  `python3-numpy` (1.26.4) y `python3-opencv` (4.6.0) son los valores de
+  rosdistro jazzy y del archivo de Ubuntu 24.04 al cierre de esta sesión, no
+  observados todavía en la Jetson. Los comandos de la tabla `tab:software-environment`
+  los confirman al instalar; si difieren, se corrige la tabla. La comprobación
+  se ejecuta en el arranque de P-11, junto con el registro del manifiesto.
+- Runtime de inferencia: delegado a P-03 (§3.3), idéntico en A, B y C. No
+  bloquea el cierre de P-02.
+
+**Política de relojes (decidida 2026-10-19).** Se fija el gobernador
+`performance` en los seis núcleos de la CPU y en el dominio de `devfreq` de la
+GPU; el dominio de memoria conserva su escalado y se registra su frecuencia. Se
+rechaza dejar el escalado por omisión (el escalado responde a la carga, que
+difiere entre A y B/C, lo que sesgaría la comparación en la dirección de H1 y
+H3) y se rechaza `jetson_clocks` (fija también la memoria al máximo y saca al
+equipo del presupuesto de potencia de §3.1). Gobernadores disponibles
+verificados en el equipo: `ondemand userspace performance schedutil`; dominios
+de `devfreq`: `17000000.gpu` y `bwmgr`.
+
+**Bibliografía (cerrado 2026-10-19).** Tres entradas en Zotero, con clave
+fijada desde la interfaz y fecha de acceso: `rep2000`, `rosjazzyrclpy` y
+`nvidiacorporation2026jetpack`. BBT exporta `referencias.bib` automáticamente,
+de modo que el `.bib` no se edita a mano: el flujo es Zotero → BBT → archivo, y
+la clave se fija en el campo *Citation Key* del ítem, no en *Extra* (en esta
+biblioteca BBT no lee ni escribe claves por *Extra*: `rosjazzydocs`, correctamente
+fijada, tiene *Extra* vacío). Se corrigieron dos defectos de metadata de la
+entrada importada de REP 2000 —autor invertido «Dirk, Thomas» y «Geofrey» por
+«Geoffrey»— y el título de la de `rclpy`, que arrastraba el banner «rclpy 3.2.1»
+inconsistente con la versión 7.1.12 de Jazzy. Queda por decidir si la fecha de
+`rep2000` es la de publicación (2018-04-18) o la de actualización (2026-07-08).
+
+**Estado previo (contexto histórico).** §3.2 tenía siete `\todo{SPECIFY}`
+(sistema operativo, JetPack, distribución de ROS 2, implementación de DDS,
+configuración de QoS, versión de Python y versiones de paquetes) y §3.5 dejaba
+el tipo de ejecutor dentro de un `\todo`. El capítulo 2 explica por qué estas
 decisiones importan: la QoS afecta la latencia (`fernandez2020`,
 `kronauer2021`), la implementación de DDS afecta el rendimiento
 (`maruyama2016`, `kronauer2021`, `zhang2024`) y el ejecutor es inseparable del
@@ -721,6 +782,13 @@ comparación. Documentar cómo se comprobó.
 configuración del benchmark están bajo control de versiones”
 (`sections/capitulo-3.tex:423`), pero no hay código en el repositorio. No hay
 esquema de datos, orquestador ni repositorio de resultados.
+
+**Pendiente heredado de P-02.** Antes de la primera corrida, verificar en el
+equipo los valores de `tab:software-environment` con los comandos de esa tabla
+y registrar el manifiesto de paquetes del paso (iii) de §3.2: `ros-jazzy-*`
+7.1.x, `ros-jazzy-fastrtps` 2.14.7, `python3-numpy` 1.26.4 y `python3-opencv`
+4.6.0. Si alguno difiere, corregir la tabla de §3.2 antes de ejecutar los
+pilotos; el manifiesto se guarda con el artefacto de la corrida.
 
 **Objetivo.** Construir el arnés que ejecuta una condición completa de forma
 automática y registrar los datos con metadatos suficientes para reproducirla.

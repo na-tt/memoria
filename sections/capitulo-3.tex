@@ -113,27 +113,244 @@ efectos de red, que están fuera del alcance de esta memoria.
 \section{Entorno de software}
 \label{sec:software-environment}
 
-El entorno de software completo se documenta y se mantiene constante:
+El entorno de software se fija en una sola combinación de versiones, se
+mantiene constante en todas las corridas y se verifica con los comandos
+indicados en la \Cref{tab:software-environment}. La base es JetPack 7.2.1,
+que proporciona una imagen raíz Ubuntu 24.04 LTS (Noble) para \texttt{aarch64}
+\cite{nvidiacorporation2026jetpack}. Sobre esa base se instala ROS~2 Jazzy
+Jalisco, la distribución con soporte de largo plazo que corresponde a Ubuntu
+24.04 y que ofrece paquetes binarios para \texttt{arm64} en esa versión
+\cite{rep2000, rosjazzydocs}; de este modo la distribución no se compila desde
+el código fuente.
 
-\begin{itemize}
-  \item Sistema operativo: \todo{SPECIFY: Linux distribution and version}
-  \item Versión de JetPack: \todo{SPECIFY}
-  \item Distribución de ROS~2: \todo{SPECIFY: one distribution, fixed for
-        all experiments}
-  \item Implementación de DDS: \todo{SPECIFY: one implementation, fixed
-        for all experiments, selected through the rmw layer}
-  \item Configuración de QoS: \todo{SPECIFY: one fixed configuration,
-        stated explicitly, including reliability, durability, and history
-        policies. QoS settings measurably affect latency
-        \cite{fernandez2020, kronauer2021} and must therefore be part of
-        the documented experimental condition.}
-  \item Versión de Python: \todo{SPECIFY}
-  \item Versiones de paquetes (entorno de ejecución de inferencia,
-        bibliotecas de imágenes, herramientas de monitoreo): \todo{SPECIFY}
-\end{itemize}
+\begin{table}[htbp]
+  \centering
+  \caption[Configuración del entorno de software]{Configuración del entorno de
+  software. Todos los valores se mantienen constantes en las tres
+  configuraciones experimentales y se verifican con el comando indicado.}
+  \label{tab:software-environment}
+  \begin{tabular}{@{}L{0.17\linewidth}L{0.47\linewidth}L{0.30\linewidth}@{}}
+    \toprule
+    \textbf{Elemento} & \textbf{Valor fijo} & \textbf{Verificación} \\
+    \midrule
+    Sistema operativo & Ubuntu 24.04 LTS (Noble), \texttt{aarch64}, imagen
+      raíz de JetPack 7.2.1 & \texttt{cat /etc/os-release} \\
+    JetPack & 7.2.1 (\texttt{nvidia-jetpack} 7.2.1-b49) sobre Jetson Linux
+      39.2.1, kernel 6.8 & \texttt{dpkg-query --show nvidia-l4t-core} \\
+    ROS~2 & Jazzy Jalisco, paquetes binarios \texttt{arm64} &
+      \texttt{printenv ROS\_DISTRO} \\
+    Middleware & Fast DDS 2.14.7 seleccionado mediante
+      \texttt{rmw\_fastrtps\_cpp} & \texttt{printenv RMW\_IMPLEMENTATION} \\
+    Perfil de QoS & uno solo, idéntico en todos los tópicos
+      (\Cref{sec:qos}) & código de los nodos \\
+    Ejecutor & \texttt{SingleThreadedExecutor} de \texttt{rclpy} en todos los
+      nodos (\Cref{sec:ros2-implementation}) & código de los nodos \\
+    Intérprete de Python & CPython 3.12.3, el del sistema &
+      \texttt{python3 --version} \\
+    Bibliotecas de imagen & NumPy 1.26.4 y OpenCV 4.6.0, instalados desde
+      Ubuntu 24.04 (\texttt{python3-numpy}, \texttt{python3-opencv}) &
+      \texttt{python3 -c 'import cv2'} \\
+    Runtime de inferencia & el de la \Cref{sec:pipeline}, idéntico en A, B y
+      C & \Cref{sec:pipeline} \\
+    Monitoreo & \texttt{tegrastats} para frecuencias, temperatura y consumo &
+      \Cref{sec:metric-measurement} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La instalación sigue un procedimiento único, que se ejecuta una vez y se
+registra junto con el artefacto experimental: (i)~flasheo de la imagen ISO de
+JetPack 7.2.1 con la configuración Super sobre el NVMe; (ii)~alta del
+repositorio oficial de ROS~2 mediante el paquete \texttt{ros2-apt-source} e
+instalación de \texttt{ros-jazzy-ros-base} junto con los paquetes que la
+cadena requiera, más las bibliotecas de imagen del intérprete
+(\texttt{python3-numpy} y \texttt{python3-opencv}); (iii)~congelación de las
+versiones con \texttt{apt-mark hold} sobre los paquetes \texttt{ros-jazzy-*}
+y los de las bibliotecas de imagen, y registro del manifiesto completo de
+paquetes instalados, de modo que una actualización no altere el entorno en
+mitad de la campaña; (iv)~selección del middleware con la variable de entorno
+\texttt{RMW\_IMPLEMENTATION}; y (v)~verificación con los comandos de la
+\Cref{tab:software-environment}.
+
+NumPy y OpenCV se instalan desde los paquetes de Ubuntu y no desde
+\texttt{pip}, porque los paquetes del sistema quedan fijados por
+\texttt{apt-mark hold} y garantizan el mismo binario en las tres
+configuraciones. La imagen de JetPack 7.2.1 no incluye estos módulos en el
+intérprete del sistema, de modo que su instalación es explícita y forma parte
+del procedimiento registrado. Se usa la compilación de OpenCV de Ubuntu —sin
+aceleración por GPU— porque el preprocesamiento y el postprocesamiento se
+ejecutan en la CPU en las tres configuraciones; la inferencia, que es la
+etapa intensiva en cómputo, se ejecuta en la GPU mediante el runtime que se
+fija en la \Cref{sec:pipeline}.
+
+La implementación de middleware es Fast DDS, seleccionada a través de
+\texttt{rmw\_fastrtps\_cpp}, que es la implementación por omisión de ROS~2
+Jazzy. Se selecciona de forma explícita, en lugar de depender del valor por
+omisión de la distribución, para que el middleware efectivo quede registrado
+en el entorno y no pueda cambiar de manera inadvertida. La elección se fija
+como condición y no como variable porque la implementación de DDS altera de
+manera medible la latencia y el uso de recursos \cite{maruyama2016,
+kronauer2021, zhang2024}: mientras esa configuración no varíe, las diferencias
+observadas entre A, B y C admiten atribución al particionamiento.
+
+No se usa archivo de perfil XML ni se modifican los parámetros de transporte
+de Fast DDS: la comunicación entre nodos emplea la configuración por omisión
+del middleware que, en un mismo anfitrión, combina el transporte por memoria
+compartida con UDP sobre la interfaz de retorno local. Tampoco se habilita la
+comunicación intraproceso, porque las tres configuraciones ejecutan los nodos
+como procesos separados del sistema operativo. La condición medida corresponde
+así al despliegue que resulta de adoptar ROS~2 sin optimizaciones de
+transporte, que es precisamente el objeto de estudio.
+
+\subsection{Calidad de servicio}
+\label{sec:qos}
+
+Los experimentos usan un único perfil de QoS, idéntico en todos los tópicos y
+en las tres configuraciones. El perfil se declara de forma explícita en el
+código de los nodos, en lugar de heredarse de los perfiles predefinidos de la
+biblioteca cliente, para que sus valores no dependan de la versión instalada y
+queden registrados en el artefacto versionado:
+
+\begin{verbatim}
+from rclpy.qos import (
+    DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy)
+
+PERFIL = QoSProfile(reliability=ReliabilityPolicy.RELIABLE,
+                    durability=DurabilityPolicy.VOLATILE,
+                    history=HistoryPolicy.KEEP_LAST,
+                    depth=1)
+\end{verbatim}
+
+La \Cref{tab:qos-policies} resume las políticas fijadas y la alternativa que
+se descarta en cada caso.
+
+\begin{table}[htbp]
+  \centering
+  \caption[Perfil de QoS]{Perfil de QoS fijo. El perfil se aplica a todos los
+  tópicos y a las tres configuraciones experimentales.}
+  \label{tab:qos-policies}
+  \begin{tabular}{@{}L{0.24\linewidth}L{0.20\linewidth}L{0.50\linewidth}@{}}
+    \toprule
+    \textbf{Política} & \textbf{Valor fijo} & \textbf{Alternativa descartada} \\
+    \midrule
+    Fiabilidad (\texttt{reliability}) & \texttt{RELIABLE} &
+      \texttt{BEST\_EFFORT}: permite al middleware descartar muestras cuando
+      el suscriptor se atrasa \\
+    Durabilidad (\texttt{durability}) & \texttt{VOLATILE} &
+      \texttt{TRANSIENT\_LOCAL}: retiene la última muestra para suscriptores
+      que se conectan tarde \\
+    Historial y profundidad (\texttt{history}, \texttt{depth}) & \texttt{KEEP\_LAST}, 1 & \texttt{KEEP\_ALL}, o
+      una profundidad mayor que uno \\
+    Plazo, vigencia y vivacidad (\texttt{deadline}, \texttt{lifespan},
+      \texttt{liveliness}) & valores por omisión & declarar plazos,
+      vigencias o vivacidades \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Se fija la fiabilidad en \texttt{RELIABLE}, que obliga al middleware a
+reintentar la entrega hasta que el suscriptor recibe cada muestra. La
+implementación monolítica procesa todos los fotogramas de la entrada, de modo
+que la comparación solo es válida si las implementaciones de ROS~2 procesan
+esa misma secuencia; con \texttt{RELIABLE} ninguna etapa pierde entradas por
+decisión del middleware. La alternativa \texttt{BEST\_EFFORT} no ofrece esa
+garantía: cuando una etapa se atrasa, el middleware puede descartar
+fotogramas sin notificarlo, de modo que la tasa de procesamiento y la latencia
+medidas dejarían de describir el costo arquitectónico para describir también
+cuántos fotogramas se descartaron. La opción elegida tiene un costo conocido
+—tráfico de confirmaciones y eventuales retenciones del productor cuando el
+historial está lleno— que se asume como parte de la condición medida, ya que
+la configuración de QoS se refleja en la latencia \cite{fernandez2020,
+kronauer2021}.
+
+Se fija la durabilidad en \texttt{VOLATILE}: el suscriptor recibe solo las
+muestras publicadas después de emparejar con el publicador. La cadena
+transporta un flujo continuo de fotogramas y cada uno solo es útil mientras la
+etapa siguiente puede procesarlo, de modo que carece de sentido entregar
+muestras anteriores. La alternativa \texttt{TRANSIENT\_LOCAL} mantendría la
+última muestra disponible para los suscriptores que se conectan tarde; en una
+cadena que arranca por etapas, eso entregaría un fotograma antiguo a la
+primera etapa que se incorpora, con lo que la primera medición de cada corrida
+incluiría una latencia que no proviene del procesamiento, y obligaría al
+publicador a mantener un almacén de muestras, que consume memoria en un
+dispositivo de 8~GB.
+
+Se fija el historial en \texttt{KEEP\_LAST} con profundidad 1, de modo que
+cada extremo retiene el fotograma en vuelo y nada más: cada etapa procesa un
+fotograma a la vez, igual que la implementación monolítica secuencial.
+\texttt{KEEP\_ALL} dejaría la cola sin cota, con lo que la memoria crecería
+durante la corrida y las latencias incluirían el tiempo de espera en cola, que
+es un efecto del tamaño de la cola y no de la arquitectura. Una profundidad
+mayor que uno permitiría que dos o más fotogramas estuvieran a la vez en
+etapas distintas, es decir, introduciría solapamiento entre etapas: la tasa de
+procesamiento aumentaría entonces por la concurrencia añadida y no por el
+particionamiento, y la hipótesis H4 —más fronteras implican más sobrecosto—
+quedaría confundida, porque el número de fronteras y el grado de solapamiento
+cambiarían al mismo tiempo. La profundidad 1 acota además la memoria ocupada
+por las imágenes en vuelo: a resolución completa cada muestra ocupa varios
+megabytes, y el costo de serialización y de copia crece con el tamaño de la
+carga útil \cite{kronauer2021, luo2025}.
+
+Las políticas de plazo, vigencia y vivacidad se dejan en sus valores por
+omisión —plazo y vigencia infinitos, vivacidad automática— y se declara de
+forma explícita que no se usan. Declarar un plazo o una vivacidad añadiría
+vencimientos que compiten con los callbacks de datos dentro del ejecutor y
+alterarían el patrón de ejecución que se busca medir; fijar una vigencia, en
+cambio, descartaría muestras por antigüedad, que es un descarte por tiempo
+con los mismos inconvenientes señalados para \texttt{BEST\_EFFORT}.
+
+El perfil es el mismo en los tópicos de imagen y en el de detecciones, porque
+la política de QoS no se compara en este trabajo: una sola configuración evita
+introducir un segundo factor experimental. Con esta combinación ninguna
+política descarta fotogramas por diseño; si durante los experimentos piloto se
+observan pérdidas —por ejemplo, por contrapresión sostenida—, la política de
+descarte efectiva se documenta en el procedimiento de la
+\Cref{sec:procedure} antes de la campaña final.
+
+La configuración de cómputo se fija junto con el entorno. Los seis núcleos de
+la CPU permanecen activos, sin afinidad de procesos ni grupos de control, y el
+escalado dinámico de frecuencia se desactiva en los dos dominios de cómputo: el
+gobernador de la CPU se fija en \texttt{performance}, que mantiene cada núcleo
+en la frecuencia máxima permitida por el modo de energía fijado en la
+\Cref{sec:platform}, y el gobernador del dominio de la GPU se fija en el mismo
+valor a través de su entrada de \texttt{devfreq}. Ambas condiciones se
+verifican antes de cada corrida leyendo el gobernador de cada núcleo y el del
+dominio de la GPU, y la frecuencia efectiva de CPU, GPU y memoria se registra
+en cada muestra (\Cref{sec:metric-measurement}).
+
+No se deja el escalado por omisión, aunque sea la condición más próxima a un
+despliegue sin intervención, porque el escalado dinámico no reacciona a la
+arquitectura de la aplicación sino a la carga instantánea de cada dominio, y
+las tres configuraciones no imponen la misma carga de CPU: B y C ejecutan más
+procesos, más callbacks y más serialización que A. Con el escalado activo, la
+frecuencia efectiva de la CPU depende de esa carga, de modo que la
+configuración monolítica y las de ROS~2 quedan medidas en regímenes de
+frecuencia distintos y la diferencia observada deja de ser atribuible solo al
+particionamiento. La variabilidad del escalado no sería entonces ruido que se
+promedia, sino un sesgo correlacionado con la variable independiente y
+orientado en la dirección de las hipótesis H1 y H3. Fijar la frecuencia en los
+dominios de cómputo iguala el régimen en las tres configuraciones y reduce la
+fluctuación entre repeticiones, que es la razón por la que la literatura de
+medición de ROS~2 neutraliza el escalado de frecuencia del sistema operativo
+antes de medir latencia \cite{kronauer2021}. No se recurre a
+\texttt{jetson\_clocks}: esa herramienta lleva también el dominio de memoria a
+su frecuencia máxima y deja todos los relojes fijos en el extremo del
+presupuesto de potencia, condición que se aparta de la establecida en la
+\Cref{sec:platform}.
+
+El dominio de memoria conserva su escalado por omisión. Su demanda está
+dominada por los mismos tensores de inferencia y los mismos fotogramas en las
+tres configuraciones, de modo que su respuesta no se separa sistemáticamente
+entre ellas, mientras que fijarlo en el máximo elevaría el consumo y acercaría
+al equipo a la limitación por potencia. Esa limitación, si ocurre, se detecta
+porque la temperatura y las frecuencias efectivas se registran en todas las
+corridas. Si en los experimentos piloto aparecen episodios de limitación
+térmica o de potencia, o si la dispersión de las frecuencias registradas
+resulta comparable a la señal que se busca medir, la política de relojes se
+revisa y se documenta antes de la campaña final.
 
 Para los experimentos principales se utiliza un despliegue sin
-contenedores. Las decisiones anteriores se tratan como condiciones
+contenedores. Todas las condiciones anteriores se tratan como condiciones
 experimentales controladas y no como variables bajo investigación; cada una
 se documenta de modo que los experimentos puedan reproducirse
 (\Cref{sec:reproducibility}).
@@ -205,16 +422,36 @@ transportan mensajes de imagen:
 Nodo D}
 \end{quote}
 
-Cada nodo publica y se suscribe con la configuración de QoS fija, y la
-configuración del ejecutor es igualmente fija e idéntica entre los nodos,
-dado que el ejecutor es inseparable del rendimiento del nodo
-\cite{macenski2023, casini2026}. El mapeo de las etapas de procesamiento a
-nodos preserva la equivalencia funcional con la implementación monolítica:
-dada la misma secuencia de entrada y el mismo modelo, ambas implementaciones
-producen salidas equivalentes.
+Cada nodo publica y se suscribe con el perfil de QoS fijo de la
+\Cref{sec:qos}. El mapeo de las etapas de procesamiento a nodos preserva la
+equivalencia funcional con la implementación monolítica: dada la misma
+secuencia de entrada y el mismo modelo, ambas implementaciones producen
+salidas equivalentes.
 \todo{SPECIFY: the exact stage-to-node mapping for each configuration once
-finalized, the executor type used, and how functional equivalence is
-verified (e.g., comparing outputs on a fixed input sequence).}
+finalized, and how functional equivalence is verified (e.g., comparing
+outputs on a fixed input sequence).}
+
+El ejecutor es idéntico en todos los nodos y en las tres configuraciones
+experimentales: cada nodo se ejecuta con un \texttt{SingleThreadedExecutor}
+de \texttt{rclpy} y una única suscripción, con el grupo de callbacks
+mutuamente exclusivo por omisión y sin temporizadores ni servicios.\footnote{%
+La biblioteca cliente de Python expone un ejecutor de un solo hilo y uno de
+varios hilos, pero no la variante estática de un solo hilo que sí existe en
+\texttt{rclcpp} \cite{rosjazzyrclpy}.} La elección del ejecutor no es
+accesoria: el ejecutor determina qué callbacks se ejecutan, en qué hilo y en
+qué orden, de modo que forma parte inseparable del rendimiento del nodo
+\cite{macenski2023, casini2026}.
+
+Se elige el ejecutor de un solo hilo por tres razones. Primero, procesa los
+callbacks en el hilo que invoca a \texttt{spin()} y, por lo tanto, un nodo
+procesa un fotograma por vez, igual que la implementación monolítica: un
+ejecutor multihilo permitiría que dos fotogramas se procesaran en paralelo
+dentro del mismo nodo, lo que añadiría concurrencia interna y confundiría el
+efecto atribuible al particionamiento. Segundo, el orden de procesamiento es
+determinista y verificable fotograma a fotograma, condición necesaria para
+comprobar la equivalencia funcional. Tercero, mantiene el mismo número de
+hilos por proceso en las tres configuraciones, de modo que la cantidad de
+hilos no varíe junto con el número de fronteras de comunicación.
 
 Esta implementación corresponde a la manera ordinaria y recomendada por
 omisión de estructurar una aplicación de ROS~2 como nodos separados
@@ -467,15 +704,18 @@ comparativa de rendimiento robótica estandarizada y reproducible
   \item Versión de JetPack
   \item Distribución de Linux
   \item Distribución de ROS~2
-  \item Implementación de DDS
+  \item Implementación de DDS y versión
+  \item Configuración de transporte de DDS
   \item Versión de Python
   \item Versiones de paquetes
   \item Versión del modelo y pesos
   \item Configuración y precisión del modelo
   \item Resolución de entrada por experimento
   \item Configuración de QoS de ROS~2
+  \item Tipo de ejecutor y grupos de callbacks
   \item Modo de energía
-  \item Configuración de CPU/GPU
+  \item Configuración de CPU/GPU, gobernador de frecuencia y frecuencias
+        efectivas registradas
   \item Condiciones ambientales y del entorno, donde corresponda
   \item Duración del benchmark
   \item Cantidad de repeticiones

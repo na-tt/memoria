@@ -67,6 +67,10 @@
 
 \usepackage{siunitx} % magnitudes y unidades (\qty, columnas S)
 \usepackage{booktabs} % reglas de tabla profesionales
+\usepackage{array} % columnas de tabla con alineación propia
+% 'L': columna de ancho fijo alineada a la izquierda y sin sangría de
+% primera línea, para celdas con comandos o rutas que no deben estirarse.
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 
 % Nombre de los cuadros flotantes. polyglossia usa "Cuadro" en español,
 % mientras que cleveref (más abajo) usa "Tabla"; se unifica en "Tabla"
