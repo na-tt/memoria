@@ -58,19 +58,19 @@ Convenciones del documento:
 |---|---|---|
 | `main.tex` | Preliminar | Front matter, capítulos 1–3, `conclusiones` vacío, bibliografía y anexo de relleno. `\toggletrue{revisarbib}` activo en la línea 35. |
 | `sections/portada.tex` | Casi final | Fecha de compilación con `\DTMnow`; título y datos institucionales presentes. |
-| `sections/resumen.tex` | Incompleto | Tres `\todo` (modelo, resultados, conclusión). |
-| `sections/abstract.tex` | Incompleto | Los mismos tres `\todo`, en inglés. |
+| `sections/resumen.tex` | Incompleto | Dos `\todo` (resultados y conclusión); el del modelo quedó cerrado en P-03. |
+| `sections/abstract.tex` | Incompleto | Los mismos dos `\todo`, en inglés. |
 | `sections/capitulo-1.tex` | Borrador avanzado | Dos `% TODO` de cita (privacidad; adopción de rclpy). |
-| `sections/capitulo-2.tex` | Borrador avanzado | Cuatro `% TODO` sustantivos de cita/atribución y un `\todo` de modelo. Ocho figuras. |
-| `sections/capitulo-3.tex` | Esqueleto metodológico | 24 `\todo` (la mayoría `SPECIFY`); §3.1 cerrada; sin resultados. |
+| `sections/capitulo-2.tex` | Borrador avanzado | Cuatro `% TODO` sustantivos de cita/atribución; sin `\todo` visibles desde P-03. Ocho figuras. |
+| `sections/capitulo-3.tex` | Esqueleto metodológico | 15 `\todo` (la mayoría `SPECIFY`); §3.1, §3.2 y §3.3 cerradas; sin resultados. |
 | `sections/conclusiones.tex` | Vacío | Solo `\chapter*{Conclusiones}`; no está numerado ni tiene secciones. |
 | Capítulos 4, 5 y 6 | **No existen** | `docs/plan.md` los exige y el capítulo 1 los anuncia. |
 | `sections/anexos.tex` | Relleno | `\appendix` + `\chapter{Apendice A}`. |
 | `glosario.tex` | Prueba de concepto | 31 entradas; ninguna se invoca con `\gls`. |
-| `referencias.bib` | Operativo | 37 entradas; 33 citadas; 4 sin citar; 2 `@standard` sin driver en biblatex. |
+| `referencias.bib` | Operativo | 43 entradas; 39 citadas; 4 sin citar; 2 `@standard` sin driver en biblatex. |
 | Código de la cadena y del benchmark | **No existe en este repositorio** | El capítulo 3 ya afirma que está bajo control de versiones. |
 
-El PDF compilado tiene 42 páginas. El índice general llega hasta el capítulo 3
+El PDF compilado tiene 48 páginas. El índice general llega hasta el capítulo 3
 y el apéndice; la bibliografía **no aparece en el índice**. No hay referencias
 cruzadas indefinidas, pero varias figuras y la tabla experimental no se
 referencian desde el texto.
@@ -83,7 +83,7 @@ referencian desde el texto.
 |---|---|---|---|---|
 | P-01 | Fijar la plataforma experimental | **HECHO** | — | Alta |
 | P-02 | Fijar el entorno de software, DDS, QoS y ejecutor | **HECHO** | P-01 | Alta |
-| P-03 | Seleccionar la carga de trabajo y el modelo | PARCIAL | P-01, P-02 | Alta |
+| P-03 | Seleccionar la carga de trabajo y el modelo | **HECHO** | P-01, P-02 | Alta |
 | P-04 | Definir las configuraciones de particionamiento | PARCIAL | P-03 | Alta |
 | P-05 | Fijar la matriz experimental y las resoluciones | BLOQUEADO | P-03, P-04 | Alta |
 | P-06 | Diseñar el procedimiento de benchmark | PARCIAL | P-03, P-05 | Alta |
@@ -307,57 +307,63 @@ en `docs/future.md`.
 
 ### P-03 · Seleccionar la carga de trabajo y el modelo
 
-**Estado actual.** El capítulo 2 define la carga como detección de objetos y
-enumera criterios de selección, pero deja el modelo como `\todo{SPECIFY}`
-(`sections/capitulo-2.tex:387-414`). El capítulo 3 repite el `\todo`
-(`sections/capitulo-3.tex:106-108`). El resumen y el abstract también tienen
-un `\todo` para el modelo (`sections/resumen.tex:22`,
-`sections/abstract.tex:19`). La biblioteca contiene estudios de despliegue en
-la Orin Nano (`scalcon2024`, `alqahtani2026`, `szegedi2026`, `tang2026`), pero
-no una revisión dedicada de detección de objetos.
+**Estado: completado (2026-10-19).** La decisión quedó escrita en
+`sections/capitulo-2.tex` §2.5 (justificación frente a los cinco criterios del
+plan) y en `sections/capitulo-3.tex` §3.3, que se dividió en dos subsecciones
+nuevas: §3.3.1 «Modelo y configuración de inferencia» (`sec:model-configuration`,
+con la tabla `tab:model-configuration`) y §3.3.2 «Secuencia de entrada»
+(`sec:input-sequence`). Valores fijados:
 
-**Objetivo.** Elegir un modelo de detección, su runtime y su precisión, y
-justificar la elección con los criterios ya escritos.
+- **Modelo:** YOLOv8n, de la familia YOLO, en su implementación y pesos
+  publicados por Ultralytics.
+- **Pesos:** `yolov8n.pt`, 6 549 796 bytes, SHA-256
+  `f59b3d83e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36`. El mismo
+  archivo se sirve en las versiones 8.3.0 y 8.4.0 de `ultralytics/assets`, de
+  modo que la identidad se fija por hash y no por etiqueta de versión.
+- **Licencia:** AGPL-3.0, declarada en los metadatos internos del archivo de
+  pesos; el artefacto experimental se distribuye bajo esa misma licencia.
+- **Runtime:** TensorRT 10.16.2, el que incluye JetPack 7.2.1, invocado con
+  `bindings` explícitos (`execute_async_v3` sobre flujo de CUDA) y no con la
+  interfaz de alto nivel de Ultralytics, porque esa interfaz ejecuta
+  preprocesamiento, inferencia y postprocesamiento en una sola llamada e
+  impediría asignar las tres etapas a nodos distintos.
+- **Formato y motor:** ONNX exportado una vez con Ultralytics 8.3.0, `opset` 17
+  y entrada fija de 640×640; motor construido en el dispositivo con
+  `trtexec --fp16`. Se versionan el ONNX y su hash, no el motor.
+- **Precisión:** FP16. Se descartan INT8 (exigiría calibración y validación de
+  exactitud, fuera de alcance) y FP32 (desaprovecha los núcleos tensor).
+- **Entrada del modelo:** 640×640 con `letterbox` en todas las condiciones, de
+  modo que la etapa de inferencia no varía con la resolución experimental.
+- **Postprocesamiento:** confianza 0,25; solapamiento 0,70 en la supresión de
+  no máximos; máximo 300 detecciones; supresión codiciosa por clase (valores
+  por omisión de la implementación de referencia).
+- **Secuencia de entrada:** BDD100K (Yu *et al.*, CVPR 2020), clips de 40 s a
+  1280×720 y 30 fps; un solo clip, el primero en orden lexicográfico de la
+  partición de entrenamiento; reciclado por reinicio del clip si la corrida lo
+  excede; el archivo de origen no se recodifica.
 
-**Decisiones que hay que tomar.**
+También se corrigió el argumento de §3.6, que justificaba la dimensión de
+resolución afirmando que el costo de inferencia crecía con ella
+(`szegedi2026`): con la entrada del modelo fija en 640×640, la resolución
+actúa sobre decodificación, preprocesamiento y tamaño de los mensajes, y no
+sobre el cómputo de la red. Es la segunda salida que preveía P-05 («o bien una
+corrección de la afirmación»). La fila «Runtime de inferencia» de
+`tab:software-environment` pasó a declarar TensorRT 10.16.2 con su comando de
+verificación. En `main.tex` se agregó `seqsplit` para poder cortar el hash.
+Las entradas nuevas (`yu2020`, `redmon2016`, `ultralytics2023`) se agregaron a
+Zotero y Better BibTeX las exportó a `referencias.bib`.
 
-- Familia y variante del modelo (por ejemplo, una variante de YOLO, SSD o
-  EfficientDet), con su publicación de origen.
-- Pesos exactos: versión, hash o URL, y licencia.
-- Runtime de inferencia (TensorRT, ONNX Runtime, Ultralytics u otro) y
-  versión. Debe ser el mismo en la implementación monolítica y en la de
-  ROS 2.
-- Precisión numérica (FP32, FP16 o INT8) y, si es INT8, el conjunto y el
-  procedimiento de calibración.
-- Tamaño de entrada esperado por el modelo, umbral de confianza, umbral y
-  variante de supresión de no máximos, y número máximo de detecciones.
-- Cómo se obtienen y fijan los pesos (descarga verificable, no un archivo
-  local sin procedencia).
-
-**Contexto y restricciones.** `docs/plan.md` §7 fija los criterios: ejecución
-confiable en la Orin Nano, reproducibilidad, pesos documentados, tiempo de
-inferencia razonable y aptitud para tiempo real o casi tiempo real. El mismo
-modelo y la misma configuración deben usarse en todas las condiciones. La
-elección debe ser compatible con las resoluciones de P-05 y con el runtime de
-P-02. No se evalúan varios modelos: eso está fuera de alcance.
-
-**Entregable.** §2.5 y §3.3 con el modelo, la versión de pesos, el runtime, la
-precisión y los umbrales; resumen y abstract con el nombre del modelo; entrada
-bibliográfica del modelo si no está en `referencias.bib`. Documentar el
-procedimiento de descarga o verificación de pesos.
-
-**Criterios de aceptación.** Un lector puede reproducir exactamente el modelo
-y la inferencia; la justificación se apoya en las fuentes ya citadas o en una
-fuente nueva agregada a Zotero; no se reportan resultados de rendimiento del
-modelo; la elección no introduce una comparación de modelos.
+**Pendiente heredado por P-05.** El clip concreto y su SHA-256 no se pudieron
+registrar en esta sesión: la descarga de BDD100K exige registro y aceptación de
+la licencia en el portal del conjunto, y los espejos documentados
+(`dl.cv.ethz.ch`, `doc.bdd100k.com`) no resuelven. La regla de selección ya
+está fijada en §3.3.2, de modo que P-05 solo debe registrar el nombre del
+archivo, su SHA-256, contenedor, códec, número de fotogramas y fecha de
+descarga, y decidir si el hash se imprime también en la memoria o queda solo
+en el manifiesto del artefacto.
 
 **Dependencias.** Requiere P-01 y P-02 para verificar viabilidad. Desbloquea
 P-04, P-05, P-09 y P-18.
-
-**Notas.** Si se elige un modelo cuya publicación no está en la biblioteca,
-agregarlo a Zotero y exportar la entrada; no citar de memoria. No elegir el
-modelo solo por popularidad: la justificación debe conectar con los criterios
-del plan.
 
 ---
 
@@ -488,6 +494,16 @@ el diseño no produce.
 **Notas.** Si se descubre que la resolución no afecta la comunicación por el
 diseño de las fronteras, es preferible corregir el argumento a agregar
 condiciones nuevas.
+
+**Nota (2026-10-19, al cerrar P-03).** P-03 ya resolvió el punto (c) de las
+decisiones pendientes: la entrada del modelo queda fija en 640$\times$640 en
+todas las condiciones, y por eso se corrigió el argumento de §3.6 —la
+resolución ya no se justifica por el costo de inferencia, sino por el volumen
+de datos que atraviesa la cadena—. Queda por decidir si la resolución
+experimental se aplica al fotograma que se decodifica (a) o a la imagen que se
+publica en el primer tópico (b), y queda por registrar el clip concreto de
+BDD100K con su SHA-256, contenedor, códec, número de fotogramas y fecha de
+descarga; la regla de selección ya está fijada en `sec:input-sequence`.
 
 ---
 

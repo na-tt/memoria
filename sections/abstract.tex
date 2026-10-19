@@ -15,9 +15,9 @@ This work experimentally characterizes the performance impact of partitioning a 
 processing pipeline into ROS~2 nodes (rclpy), compared with an equivalent
 single-process Python implementation, on an NVIDIA Jetson Orin Nano.
 
-Functionally equivalent implementations of the same neural-network-based
-computer-vision application \todo{SPECIFY: selected model} 
-are evaluated under a reproducible
+Functionally equivalent implementations of the same computer-vision
+application, based on the YOLOv8n object detector, are evaluated under a
+reproducible
 benchmarking methodology, with increasing partitioning configurations and several input resolutions,
 measuring end-to-end latency, throughput (FPS), and CPU, RAM, and GPU
 utilization.

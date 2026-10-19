@@ -99,7 +99,7 @@ deliberada: un archivo entrega la misma secuencia de fotogramas en cada
 corrida y en cada configuración, lo que permite comparar las salidas de las
 configuraciones A, B y C fotograma a fotograma y elimina la variabilidad de
 exposición, ganancia y tasa de cuadro propia de un sensor en vivo. El
-archivo se fija en la \Cref{sec:pipeline}; su resolución debe ser al menos
+archivo se fija en la \Cref{sec:input-sequence}; su resolución es al menos
 la mayor de las resoluciones experimentales de la
 \Cref{sec:configurations}, y la forma en que se sirven los fotogramas se
 especifica en la \Cref{sec:procedure}.
@@ -150,8 +150,9 @@ el código fuente.
     Bibliotecas de imagen & NumPy 1.26.4 y OpenCV 4.6.0, instalados desde
       Ubuntu 24.04 (\texttt{python3-numpy}, \texttt{python3-opencv}) &
       \texttt{python3 -c 'import cv2'} \\
-    Runtime de inferencia & el de la \Cref{sec:pipeline}, idéntico en A, B y
-      C & \Cref{sec:pipeline} \\
+    Runtime de inferencia & TensorRT 10.16.2, el que incluye JetPack 7.2.1,
+      idéntico en A, B y C &
+      \texttt{python3 -c 'import tensorrt as t; print(t.\_\_version\_\_)'} \\
     Monitoreo & \texttt{tegrastats} para frecuencias, temperatura y consumo &
       \Cref{sec:metric-measurement} \\
     \bottomrule
@@ -381,14 +382,197 @@ que consiste en las siguientes etapas lógicas:
         procesamiento.
 \end{enumerate}
 
+\subsection{Modelo y configuración de inferencia}
+\label{sec:model-configuration}
+
 El modelo de red neuronal se selecciona de acuerdo con los criterios de la
-\Cref{sec:workload}, sobre la base de evidencia publicada de que la
-detección de objetos en tiempo real es factible en la Orin Nano con las
-familias estándar de detectores de una etapa \cite{scalcon2024,
-alqahtani2026, szegedi2026,tang2026}:
-\todo{SPECIFY: final model, weights version, precision, and inference
-runtime once selected.} El mismo modelo y la misma configuración de
-inferencia se utilizan en cada configuración experimental.
+\Cref{sec:workload}, donde se justifica la elección; esta sección fija la
+configuración exacta. La cadena ejecuta el detector YOLOv8n, de la familia
+YOLO \cite{redmon2016}, en su implementación y pesos publicados por
+Ultralytics \cite{ultralytics2023}. La \Cref{tab:model-configuration} reúne
+los valores fijados, todos idénticos en las tres configuraciones
+experimentales y en las tres resoluciones.
+
+Los pesos se obtienen una sola vez del origen publicado y se identifican por
+su resumen criptográfico, no por la dirección de descarga. El archivo
+\texttt{yolov8n.pt} tiene un SHA-256 de
+\texttt{\seqsplit{f59b3d83e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36}}
+y 6\,549\,796 bytes, y el lector lo verifica con \texttt{sha256sum} sobre el
+archivo que descargue. Fijar el hash en lugar de la dirección es lo que hace
+verificable la identidad del modelo: el archivo se sirve desde un repositorio
+cuyos archivos adjuntos pertenecen a versiones etiquetadas, y el mismo
+contenido aparece en las versiones 8.3.0 y 8.4.0 de ese repositorio, de modo
+que la etiqueta no basta por sí sola como identificador. El archivo declara
+su licencia en sus propios metadatos: los pesos y el software que los publica
+están bajo licencia AGPL-3.0, con la opción de una licencia comercial que no
+se utiliza aquí. En consecuencia, el artefacto experimental de esta memoria
+se distribuye bajo esa misma licencia.
+
+\begin{table}[H]
+  \centering
+  \caption[Configuración del modelo y de la inferencia]{Configuración del
+  modelo y de la inferencia. Todos los valores se mantienen constantes en las
+  tres configuraciones experimentales y en las tres resoluciones.}
+  \label{tab:model-configuration}
+  \begin{tabular}{@{}L{0.18\linewidth}L{0.46\linewidth}L{0.29\linewidth}@{}}
+    \toprule
+    \textbf{Elemento} & \textbf{Valor fijo} & \textbf{Verificación} \\
+    \midrule
+    Modelo & YOLOv8n, de la familia YOLO & manifiesto del artefacto \\
+    Pesos & \texttt{yolov8n.pt}, 6\,549\,796 bytes & \texttt{sha256sum} \\
+    Origen de los pesos & descarga única desde el archivo adjunto a la
+      versión 8.3.0 del repositorio \texttt{ultralytics/assets} & URL y hash
+      en el manifiesto \\
+    Licencia de los pesos & AGPL-3.0, declarada en los metadatos del archivo
+      de pesos & metadatos del \emph{checkpoint} \\
+    Formato ejecutable & ONNX exportado una vez desde los pesos,
+      \emph{opset} 17, entrada fija de 640$\times$640 & hash del ONNX en el
+      manifiesto \\
+    Runtime de inferencia & TensorRT 10.16.2, el que incluye JetPack 7.2.1,
+      invocado con \emph{bindings} explícitos
+      (\Cref{tab:software-environment}) & \Cref{tab:software-environment} \\
+    Motor & construido en el dispositivo con \texttt{trtexec}; no se versiona
+      & comandos registrados \\
+    Precisión & FP16 & bandera \texttt{--fp16} \\
+    Entrada del modelo & 640$\times$640, con \emph{letterbox} y relleno en
+      gris & código del preprocesamiento \\
+    Postprocesamiento & confianza 0,25; solapamiento de 0,70 en la
+      supresión de no máximos; máximo de 300 detecciones; supresión
+      codiciosa por clase & código del postprocesamiento \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La ejecución de la red no usa la interfaz de alto nivel del publicador de los
+pesos. El modelo se exporta una vez a ONNX y el motor de TensorRT se
+construye en el dispositivo de medición con la herramienta \texttt{trtexec}
+que JetPack incluye:
+
+\begin{verbatim}
+yolo export model=yolov8n.pt format=onnx imgsz=640 opset=17
+trtexec --onnx=yolov8n.onnx --saveEngine=yolov8n-fp16.engine --fp16
+\end{verbatim}
+
+La exportación se ejecuta una sola vez con Ultralytics 8.3.0, la misma
+versión de la que proceden los pesos, y fija el \emph{opset} 17 en lugar de
+dejar que la herramienta elija el más reciente, que depende de la versión de
+ONNX instalada. Lo que se versiona es el resultado de esa exportación —el
+archivo ONNX y su SHA-256— junto con ambos comandos; reconstruir un ONNX
+idéntico no es condición para reproducir las mediciones, porque la cadena
+medida consume el archivo registrado. El motor tampoco se versiona: un motor
+de TensorRT está ligado al dispositivo, a la versión del runtime y a la del
+controlador, de modo que se reconstruye en el dispositivo con el comando
+registrado y con la misma versión de TensorRT. La construcción del motor es
+una compilación y no forma parte de la cadena medida.
+
+La inferencia se invoca directamente sobre la API de Python de TensorRT, con
+memoria de dispositivo asignada de forma explícita, direcciones de entrada y
+de salida registradas y ejecución asíncrona sobre un flujo de CUDA. Se evita
+la interfaz de alto nivel por dos razones. Primera, esa interfaz ejecuta el
+preprocesamiento, la inferencia y el postprocesamiento dentro de una sola
+llamada, lo que impediría hacer de esas tres etapas las etapas separables que
+el particionamiento de la \Cref{sec:configurations} necesita: la frontera
+entre nodos tiene que poder trazarse entre etapas, y una llamada que las
+abarca todas obligaría a particionar por dentro de una caja negra. Segunda,
+el costo que se mide debe ser el de la aplicación y no el de una capa de
+abstracción intermedia; con \emph{bindings} explícitos, el mismo código de
+inferencia —y no solo el mismo modelo— se ejecuta en las tres
+configuraciones, y lo único que cambia es el proceso en que corre.
+
+La precisión se fija en FP16, la media precisión que los núcleos tensor de la
+GPU de la plataforma ejecutan de forma nativa, y la condición que las
+caracterizaciones de TensorRT sobre este mismo dispositivo evalúan junto con
+FP32 e INT8 \cite{szegedi2026, tang2026}. La media precisión reduce además
+la huella de memoria del motor respecto de FP32, lo que no es un detalle
+menor en un módulo de 8~GB. La literatura advierte que su efecto no es
+uniforme: para modelos pequeños con lote unitario puede no aumentar la tasa
+de procesamiento, y su beneficio principal es entonces energético
+\cite{tang2026}. Ninguno de esos efectos se mide en esta memoria; la
+precisión se fija como condición del despliegue y no como variable
+experimental. Se descarta INT8 porque exige un conjunto y un procedimiento de
+calibración, y porque su validación obliga a medir la exactitud del modelo
+cuantizado, que está fuera del alcance de esta memoria; además, la
+cuantización altera las detecciones producidas y con ello el volumen de
+trabajo del postprocesamiento, que es una de las etapas medidas. Se descarta
+FP32 porque deja inutilizados los núcleos tensor y aleja la condición medida
+de un despliegue realista en la plataforma. La precisión se fija una sola vez
+y no se trata como variable: es la misma en las tres configuraciones y en las
+tres resoluciones.
+
+La entrada del modelo se fija en 640$\times$640 en todas las condiciones. El
+preprocesamiento redimensiona el fotograma conservando su relación de aspecto
+y completa el relleno hasta el tamaño cuadrado (\emph{letterbox}). Una
+entrada fija permite ejecutar un único motor, sin perfiles de optimización ni
+un motor por resolución, en las nueve condiciones experimentales, y sostiene
+literalmente la afirmación de que la configuración de inferencia es idéntica
+en todas ellas. La consecuencia para el diseño experimental es explícita: la
+resolución de la secuencia de entrada no cambia el trabajo de la red, sino el
+de la decodificación, el del preprocesamiento y el tamaño de los mensajes que
+atraviesan la cadena, que es el término del compromiso que interesa
+caracterizar (\Cref{sec:configurations}).
+
+El postprocesamiento aplica los valores por omisión de la implementación de
+referencia de la familia: umbral de confianza 0,25, umbral de solapamiento de
+0,70 en la supresión de no máximos, un máximo de 300 detecciones y supresión
+codiciosa por clase. Adoptar los valores de referencia no es una decisión
+estética: el costo del postprocesamiento depende de cuántos cuadros
+delimitadores sobreviven a los umbrales y de cuántos candidatos compiten en
+la supresión, de modo que umbrales elegidos a conveniencia harían que el
+costo medido dependiera de un parámetro ajustable en lugar de la salida de la
+red. Con los umbrales fijos, el volumen de trabajo de la etapa queda
+determinado por el modelo y es el mismo en las tres configuraciones.
+
+Como el mismo motor y la misma configuración producen las mismas detecciones
+sea cual sea el particionamiento, la igualdad de detecciones se usa como
+control de equivalencia. Antes de la campaña se verifica una vez, sobre un
+fotograma fijo, que las detecciones del motor coinciden con las del archivo
+de pesos de referencia, lo que confirma que la exportación preserva el
+comportamiento del modelo; durante las corridas, la igualdad de detecciones
+entre las configuraciones A, B y C para una misma resolución se comprueba en
+el procedimiento de la \Cref{sec:procedure} y se usa como criterio de
+validez de la corrida. Una discrepancia indicaría que las implementaciones no
+procesan la misma entrada, y la corrida correspondiente se descarta.
+
+\subsection{Secuencia de entrada}
+\label{sec:input-sequence}
+
+La secuencia de entrada es un clip del conjunto de datos BDD100K
+\cite{yu2020}. El conjunto reúne 100\,000 clips de aproximadamente 40~s
+grabados con cámara a bordo de vehículos en circulación, a una resolución de
+1280$\times$720 y 30 fotogramas por segundo, y cubre diversidad de ciudad,
+hora del día y condiciones meteorológicas. Cumple los requisitos que la
+\Cref{sec:platform} impone a la entrada: su resolución es igual a la mayor de
+las resoluciones experimentales, de modo que ninguna condición exige ampliar
+la imagen; la misma secuencia de fotogramas se entrega en cada corrida y en
+cada configuración; y la procedencia es documentable, porque se trata de un
+conjunto publicado, con licencia escrita y citable, en lugar de material
+descargado de un servicio de video.
+
+Se usa un solo clip, elegido por regla y no por su contenido: el primero en
+orden lexicográfico de la partición de entrenamiento del conjunto. La regla
+evita la selección por conveniencia —una escena con mucho tráfico haría más
+costoso el postprocesamiento— y permite que un tercero llegue al mismo
+archivo sin depender de una decisión no documentada. La descarga exige
+registro y aceptación de la licencia en el portal del conjunto; el
+procedimiento se registra junto con el artefacto, y en el manifiesto se
+anotan el nombre del archivo, su SHA-256, el contenedor, el códec, el número
+de fotogramas y la fecha de descarga. El clip no se redistribuye.
+
+La licencia del conjunto es la del Berkeley DeepDrive, que concede permiso de
+uso, copia, modificación y distribución con fines educativos, de
+investigación y sin fines de lucro, y exige que el aviso de derechos de autor
+y sus párrafos de condiciones acompañen a toda copia o distribución. El uso
+en esta memoria queda cubierto por ese permiso, y la condición de atribución
+se cumple con la cita del conjunto y la declaración de la licencia en esta
+sección.
+
+Si la duración de corrida fijada en la \Cref{sec:procedure} excede la del
+clip, la secuencia se reinicia desde el primer fotograma; el reciclado es el
+mismo en las nueve condiciones, de modo que todas procesan la misma secuencia
+de fotogramas. El archivo de origen no se recodifica: las resoluciones
+experimentales se obtienen redimensionando cada fotograma en la etapa de
+adquisición, de modo que las nueve condiciones leen el mismo archivo y solo
+difieren en el tamaño al que el fotograma entra a la cadena.
 
 \section{Implementación monolítica}
 \label{sec:monolithic}
@@ -482,13 +666,18 @@ differences.}
 
 La matriz experimental principal cruza las tres configuraciones
 arquitectónicas con tres resoluciones de entrada. La resolución se incluye
-como dimensión secundaria porque ambos términos del compromiso bajo estudio
-escalan con ella: el costo de la inferencia crece con la resolución de
-entrada \cite{szegedi2026}, y también el costo de comunicación de los
-propios mensajes de imagen, dado que los costos de serialización y copia
-por mensaje crecen con el tamaño de la carga útil \cite{kronauer2021,
-macenski2022, luo2025}. Las resoluciones se seleccionan según las
-capacidades de la fuente de entrada y del modelo elegidos:
+como dimensión secundaria porque el término de comunicación del compromiso
+bajo estudio escala con ella: los costos de serialización, copia y
+transporte por mensaje crecen con el tamaño de la carga útil
+\cite{kronauer2021, macenski2022, luo2025}, y el tamaño de una imagen crece
+con su resolución. La etapa de inferencia, en cambio, se mantiene constante:
+el modelo recibe siempre un tensor de 640$\times$640
+(\Cref{sec:model-configuration}), de modo que la resolución actúa sobre la
+decodificación, el preprocesamiento y el tamaño de los mensajes, y no sobre
+el costo de cómputo de la red. La resolución queda así como una variable que
+afecta el volumen de datos que atraviesa la cadena y no el trabajo de la
+GPU, que es el término del compromiso que interesa caracterizar. Las
+resoluciones se seleccionan según las capacidades de la fuente de entrada:
 
 \begin{itemize}
   \item Resolución 1: \todo{SPECIFY (candidate: 320$\times$240)}

@@ -9,6 +9,12 @@ que falta verificar. La decisión definitiva corresponde a P-03 (carga de
 trabajo y modelo) y P-05 (matriz experimental y resoluciones); este documento
 solo alimenta esas decisiones.
 
+**Actualización (2026-10-19).** P-03 quedó cerrado y el conjunto de origen
+decidido: **BDD100K**. La decisión está escrita en `sections/capitulo-3.tex`
+§3.3.2 (`sec:input-sequence`), junto con la regla de selección del clip y la
+política de repetición. Queda en P-05 el registro del archivo concreto y su
+SHA-256.
+
 Última revisión: 2026-10-19.
 
 ---
@@ -35,7 +41,7 @@ De `sections/capitulo-3.tex` §3.1 (P-01, completado) y de `docs/plan.md`:
 
 ---
 
-## 2. Recomendación: BDD100K
+## 2. Decisión: BDD100K
 
 **Yu, F., Chen, H., Wang, X., Xian, W., Chen, Y., Liu, F., Madhavan, V. y
 Darrell, T. «BDD100K: A Diverse Driving Dataset for Heterogeneous Multitask
@@ -72,18 +78,26 @@ Con un archivo de un conjunto de datos publicado, el procedimiento se reduce
 a: descargar de un origen público, verificar un SHA-256 declarado y
 documentar la licencia.
 
-### Advertencias antes de fijarlo
+### Estado de la verificación (2026-10-19)
 
-- **Licencia sin verificar.** El sitio `bdd-data.berkeley.edu` no respondió
-  durante esta revisión. La descarga exige aceptar un acuerdo; hay que leerlo
-  y dejar la licencia escrita en la memoria. Si es de tipo no comercial, eso
-  no impide su uso en una memoria de título, pero debe declararse.
-- **Tamaño de la descarga sin verificar.** El conjunto completo es grande
-  (decenas de GB); conviene descargar solo lo necesario en vez del conjunto
-  íntegro.
-- **Registro.** Puede requerir formulario o cuenta; eso afecta la
-  reproducibilidad percibida, no la validez del resultado, pero conviene
-  decirlo en el texto.
+- **Licencia: verificada.** El portal `bdd-data.berkeley.edu` responde por
+  HTTP (su certificado TLS no cubre el nombre del host, de modo que `https`
+  falla con error de certificado). La pestaña *License* del portal contiene el
+  texto del Berkeley DeepDrive: permiso de uso, copia, modificación y
+  distribución con fines educativos, de investigación y sin fines de lucro,
+  con la obligación de que el aviso de derechos de autor y sus párrafos de
+  condiciones acompañen a toda copia o distribución. Es una licencia propia de
+  la Universidad de California, no una licencia abierta de uso general; el uso
+  en esta memoria queda cubierto y la licencia se declara en §3.3.2.
+- **Descarga: bloqueada en esta sesión.** Exige registro y aceptación de la
+  licencia en el portal. Los espejos citados por la documentación del conjunto
+  (`https://dl.cv.ethz.ch/bdd100k/data/`) no resuelven por DNS desde la red
+  usada, y `doc.bdd100k.com` tampoco. El archivo debe obtenerse desde el
+  portal, con la cuenta del autor.
+- **Tamaño.** Sin verificar. El paquete completo de videos se anuncia en
+  1,8 TB; conviene descargar solo la parte que contiene el clip elegido.
+- **Registro.** El portal requiere cuenta; eso afecta la reproducibilidad
+  percibida, no la validez del resultado, y se declara en el texto.
 
 ---
 
@@ -108,30 +122,35 @@ marcada como no verificada debe comprobarse antes de escribirla en la memoria.
 Lista de verificación para P-03/P-05, coherente con §3.10 de la memoria:
 
 - [ ] Nombre exacto del archivo o del clip dentro del conjunto.
-- [ ] Origen: nombre del conjunto, versión o partición, URL de descarga,
-      fecha de descarga.
+- [x] Origen: nombre del conjunto y partición (BDD100K, partición de
+      entrenamiento). Falta la fecha de descarga, que se registra al obtener
+      el archivo.
 - [ ] **SHA-256** del archivo efectivamente usado.
-- [ ] Resolución, tasa de cuadro, códec y perfil, y contenedor.
-- [ ] Duración y número de fotogramas.
-- [ ] Licencia y condiciones de uso, con la declaración correspondiente en la
-      memoria.
-- [ ] Procedimiento de obtención paso a paso, incluida la selección del clip
-      si el conjunto es grande.
-- [ ] Política de repetición: si la corrida excede la duración del clip, cómo
-      se recicla el material (bucle o concatenación) y la garantía de que es
-      idéntica en las nueve condiciones.
-- [ ] Entrada bibliográfica del conjunto en `referencias.bib` (coordinar con
-      P-19 y P-22).
+- [x] Resolución y tasa de cuadro: 1280×720 a 30 fps, verificado en el texto
+      del conjunto. Falta el códec, el perfil y el contenedor, que se leen del
+      archivo descargado.
+- [x] Licencia y condiciones de uso: Berkeley DeepDrive, verificada en el
+      portal y declarada en §3.3.2 de la memoria.
+- [x] Procedimiento de obtención, incluida la selección del clip: registro en
+      el portal, descarga de la parte que contiene el clip y elección del
+      primer archivo en orden lexicográfico de la partición de entrenamiento
+      (§3.3.2).
+- [x] Política de repetición: el clip se reinicia desde el primer fotograma si
+      la corrida lo excede, igual en las nueve condiciones (§3.3.2).
+- [x] Entrada bibliográfica del conjunto: `yu2020` en Zotero y en
+      `referencias.bib`.
 
 ---
 
 ## 5. Preguntas abiertas
 
-1. ¿Se usa un clip completo de 40 s o un segmento de duración fija extraído de
-   él? Un segmento fijo obliga a re-codificar o a recortar en tiempo de
-   decodificación; conviene decidirlo junto con la duración de corrida de
-   P-06.
-2. ¿Una sola secuencia para todas las condiciones, o una secuencia por
-   resolución? Debe ser la misma en A, B y C para cada resolución.
-3. Si la licencia exige atribución en la publicación, ¿dónde se declara: en
-   §3.3, en los agradecimientos o en ambos?
+1. ~~¿Se usa un clip completo de 40 s o un segmento de duración fija?~~
+   **Resuelto (P-03):** el clip completo; si la corrida excede su duración, se
+   reinicia desde el primer fotograma. No se recorta ni se recodifica.
+2. ~~¿Una sola secuencia para todas las condiciones, o una por resolución?~~
+   **Resuelto (P-03):** una sola, la misma en A, B y C; las resoluciones se
+   obtienen redimensionando el fotograma en la etapa de adquisición.
+3. ~~¿Dónde se declara la licencia?~~ **Resuelto (P-03):** en §3.3.2, con la
+   cita del conjunto.
+4. **Abierta (P-05):** ¿el SHA-256 del clip se imprime en la memoria o queda
+   solo en el manifiesto del artefacto?

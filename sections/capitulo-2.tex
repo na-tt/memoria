@@ -400,7 +400,7 @@ representativa y bien estudiada para la plataforma objetivo: las
 evaluaciones publicadas demuestran la viabilidad de la detección de objetos
 en tiempo real en la Orin Nano con modelos de las familias YOLO, SSD y
 EfficientDet \cite{scalcon2024, alqahtani2026, szegedi2026, tang2026}. El
-modelo de red neuronal exacto se seleccionará de acuerdo con los siguientes
+modelo de red neuronal exacto se selecciona de acuerdo con los siguientes
 criterios:
 
 \begin{itemize}
@@ -411,11 +411,48 @@ criterios:
   \item Adecuación para procesamiento en tiempo real o casi tiempo real
 \end{itemize}
 
-\todo{SPECIFY: the final selected model, its source publication, weights
-version, inference runtime, and any precision reduction applied. This
-section must be completed once the model is chosen.}
+La comparación de familias de detectores no forma parte del alcance de esta
+memoria: lo que se requiere es una carga de trabajo representativa, fija y
+verificable, y no el mejor detector posible. De las familias cuya ejecución
+en la plataforma objetivo está documentada \cite{scalcon2024,
+alqahtani2026, szegedi2026, tang2026}, se adopta un detector de la familia
+YOLO \cite{redmon2016}, que formula la detección como una regresión sobre la
+imagen completa en una sola pasada y es, por ello, representativa de los
+detectores de una etapa que la literatura evalúa en esta clase de
+dispositivos. Dentro de la familia se adopta la variante YOLOv8n, en su
+implementación y pesos publicados por Ultralytics \cite{ultralytics2023}.
 
-El mismo modelo y la misma configuración de inferencia se utilizarán en cada
+La elección se apoya en los cinco criterios anteriores y no en una
+comparación de rendimiento entre modelos. Sobre la confiabilidad de
+ejecución y la aptitud para tiempo real, la variante nano de YOLOv8 es la
+que cuenta con evaluaciones publicadas sobre el mismo dispositivo: se ha
+evaluado en la Orin Nano junto con las variantes pequeña y mediana
+\cite{alqahtani2026} y se ha ejecutado en ella con los tres runtimes de
+inferencia que la literatura de despliegue compara \cite{szegedi2026}, de
+modo que su viabilidad en la plataforma no depende de una suposición de esta
+memoria. Sobre la reproducibilidad y la disponibilidad de pesos, los pesos
+son un único archivo publicado, con versión y licencia declaradas, que se
+identifica por su resumen criptográfico y se mantiene idéntico en todas las
+condiciones (\Cref{sec:model-configuration}).
+
+El criterio de tiempo de inferencia razonable admite una consideración
+adicional, porque el objeto de estudio no es el detector sino el sobrecosto
+que introduce el particionamiento. Cuanto mayor es el costo de la etapa de
+inferencia, menor es la fracción de la latencia de extremo a extremo que
+puede atribuirse a las fronteras de comunicación, y más difícil resulta
+distinguir la señal que se busca medir. La variante más liviana de la familia
+es, por lo tanto, la que deja el mayor margen entre el tiempo de cómputo y
+el período entre fotogramas. No se elige por su exactitud, que no se evalúa
+en este trabajo, sino porque mantiene acotada y estable la etapa que domina
+el costo de cómputo en las tres configuraciones.
+
+La inferencia se ejecuta con TensorRT, la biblioteca de inferencia acelerada
+que JetPack incluye para la plataforma \cite{nvidiacorporation2026jetpack,
+szegedi2026}, en media precisión (FP16). La versión del runtime, la
+precisión, el tamaño de entrada del modelo y los umbrales de
+postprocesamiento se fijan en la \Cref{sec:model-configuration}.
+
+El mismo modelo y la misma configuración de inferencia se utilizan en cada
 configuración de benchmark, de modo que la arquitectura de la aplicación sea
 la única diferencia primaria entre las condiciones experimentales.
 
