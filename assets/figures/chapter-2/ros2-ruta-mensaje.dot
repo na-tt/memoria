@@ -1,0 +1,111 @@
+// Ruta de un mensaje entre dos nodos de ROS 2 en procesos separados.
+//
+// Puerto Graphviz de ros2-ruta-mensaje.d2 (mismo contenido semántico). Los dos
+// procesos van en espejo: el DataReader queda bajo el DataWriter y la
+// deserialización bajo la serialización. El transporte es la frontera entre
+// ambos y el aviso de disponibilidad no debe deformar el layout.
+//
+// Notas de layout:
+//   * `dot` ordena las aristas planas (mismo rank) de izquierda a derecha según
+//     su dirección. Para espejar la fila del suscriptor se escribe
+//     `ejec -> deser` y `deser -> rhc` con `dir=back`: fija el orden de columnas
+//     (Ejecutor, deserialización, DataReader) y deja la flecha apuntando hacia
+//     la izquierda, en el sentido real del flujo.
+//   * `fixedsize` con anchos iguales por columna hace que las dos filas midan
+//     exactamente lo mismo (en espejo) y que las columnas queden alineadas.
+//   * `margin` en los clusters reserva el alto necesario para que la etiqueta
+//     del aviso quede dentro del recuadro del suscriptor.
+//   * `constraint=false` evita que la arista del aviso altere el layout.
+//
+// Render:  dot -Tpng -Gdpi=180 ros2-ruta-mensaje.dot -o ros2-ruta-mensaje-graphviz.png
+
+digraph ruta_mensaje {
+  rankdir = TB;
+  newrank = true;
+  compound = true;
+  bgcolor = "white";
+  nodesep = 0.85;
+  ranksep = 1.10;
+  splines = ortho;
+
+  node [
+    shape = box
+    style = "rounded,filled"
+    fillcolor = "#e8eef7"
+    color = "#2f4b7c"
+    penwidth = 2
+    fontname = "DejaVu Sans Bold"
+    fontsize = 22
+    margin = "0.30,0.20"
+  ];
+
+  edge [
+    color = "#2f4b7c"
+    penwidth = 2
+    arrowsize = 0.9
+  ];
+
+  // --- proceso publicador ---------------------------------------------------
+  subgraph cluster_pub {
+    label = "Proceso publicador";
+    style = "dashed,rounded,filled";
+    fillcolor = "#f4f7fb";
+    color = "#2f4b7c";
+    penwidth = 2;
+    margin = 66;
+    fontname = "DejaVu Sans Bold";
+    fontsize = 22;
+
+    mensaje [label = "Mensaje ROS\n(sensor_msgs/Image)", width = 4.3, height = 1.15, fixedsize = true];
+    serial  [label = "Serialización\na muestra DDS", width = 3.25, height = 1.15, fixedsize = true];
+    whc     [label = "DataWriter\n(historia de\nescritura,\nbúfer de salida)", fillcolor = "#cfdcef", width = 3.7, height = 1.86, fixedsize = true, group = "col_data"];
+
+    { rank = same; mensaje; serial; whc; }
+    mensaje -> serial [weight = 10];
+    serial -> whc [weight = 10];
+  }
+
+  // --- frontera de transporte ----------------------------------------------
+  transporte [
+    label = "Transporte\n(sockets o\nmemoria compartida)"
+    width = 3.7
+    height = 1.86
+    group = "col_data"
+  ];
+
+  // --- proceso suscriptor (espejo) -----------------------------------------
+  subgraph cluster_sub {
+    label = "Proceso suscriptor";
+    style = "dashed,rounded,filled";
+    fillcolor = "#f4f7fb";
+    color = "#2f4b7c";
+    penwidth = 2;
+    margin = 66;
+    fontname = "DejaVu Sans Bold";
+    fontsize = 22;
+
+    ejec  [label = "Ejecutor → callback", width = 4.3, height = 1.15, fixedsize = true];
+    deser [label = "Toma y\ndeserialización\n(mensaje ROS)", width = 3.25, height = 1.7, fixedsize = true];
+    rhc   [label = "DataReader\n(historia de\nlectura,\nbúfer de entrada)", fillcolor = "#cfdcef", width = 3.7, height = 1.86, fixedsize = true, group = "col_data"];
+
+    { rank = same; ejec; deser; rhc; }
+    // dir=back: ordena las columnas de izquierda a derecha pero la flecha
+    // apunta en el sentido real del flujo (hacia la izquierda).
+    ejec -> deser [dir = back, weight = 10];
+    deser -> rhc  [dir = back, weight = 10];
+  }
+
+  // --- camino de los datos --------------------------------------------------
+  whc -> transporte [weight = 10];
+  transporte -> rhc [weight = 10];
+
+  // --- aviso de disponibilidad: no altera el layout -------------------------
+  rhc -> ejec [
+    style = dashed
+    constraint = false
+    xlabel = "aviso de disponibilidad\n(conjunto de espera)"
+    fontname = "DejaVu Sans Oblique"
+    fontsize = 18
+    fontcolor = "#676C7E"
+  ];
+}

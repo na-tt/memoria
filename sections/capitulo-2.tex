@@ -96,15 +96,20 @@ pregunta arquitectónica que esta memoria investiga.
 La familia NVIDIA Jetson comprende módulos de computación embebida que
 integran núcleos de CPU Arm, una GPU de NVIDIA y memoria en una sola placa,
 diseñados para cargas de trabajo de robótica e inteligencia artificial en
-el borde \cite{scalcon2024}. Esta memoria utiliza la Jetson Orin Nano Super,
-la configuración de kit de desarrollo (\emph{developer kit}) basada en el módulo
-Jetson Orin Nano de 8~GB. Aquí se describen solo las características de
-hardware relevantes para los experimentos; la configuración exacta del
-módulo se documenta en el Capítulo~3.
+el borde \cite{scalcon2024}. Esta memoria utiliza el kit de desarrollo
+(\emph{developer kit}) Jetson Orin Nano Super, que integra el módulo Jetson
+Orin Nano de 8~GB sobre la placa portadora de referencia
+\cite{nvidiacorporation2024}. La designación Super corresponde a la
+configuración de software del kit---que los equipos ya existentes obtienen
+mediante una actualización de software---y no a un módulo de hardware
+distinto \cite{nvidiacorporation2024}. Aquí se describen solo las
+características de hardware relevantes para los experimentos; la
+configuración exacta del módulo y el modo de energía fijado se documentan en
+la \Cref{sec:platform}.
 
 \begin{figure}[H]
   \centering
-  \figstub[0.5\linewidth]{assets/figures/chapter-2/jetson-orin-nano-module.jpg}
+  \includegraphics[width=0.5\linewidth]{assets/figures/chapter-2/jetson-orin-nano-module.jpg}
   \caption[Módulo NVIDIA Jetson Orin Nano.]{Módulo NVIDIA Jetson Orin
   Nano. El módulo integra en una única
   placa los núcleos de CPU Arm, la GPU de arquitectura Ampere con Tensor
@@ -119,7 +124,7 @@ la plataforma sobre la cual se ejecutan los experimentos de esta memoria.
 
 \begin{figure}[H]
   \centering
-  \figstub[\linewidth]{assets/figures/chapter-2/jetson-orin-nano-super-devkit.jpg}
+  \includegraphics[width=\linewidth]{assets/figures/chapter-2/jetson-orin-nano-super-devkit.jpg}
   \caption[Kit de desarrollo NVIDIA Jetson Orin Nano Super.]{Kit de
   desarrollo NVIDIA Jetson Orin Nano Super. El kit comprende
   el módulo Jetson Orin Nano de 8~GB montado sobre la placa portadora de
@@ -134,7 +139,8 @@ El módulo Jetson Orin Nano de 8~GB combina una CPU Arm de seis núcleos
 Cortex-A78AE con una GPU de NVIDIA de arquitectura Ampere que incluye 1024
 núcleos CUDA y 32 Tensor Cores, las unidades dedicadas a las operaciones
 matriciales aceleradas utilizadas en la inferencia de redes neuronales; su
-rendimiento de inferencia alcanza hasta 67~TOPS \cite{nvidiacorporation2024}.
+rendimiento de inferencia alcanza hasta 67~TOPS en la configuración Super
+\cite{nvidiacorporation2024}.
 Una característica de la plataforma directamente relevante para este estudio
 es su memoria física unificada: la CPU y la GPU acceden a la misma memoria
 LPDDR5 de 8~GB, con un bus de 128~bits y un ancho de banda de 102~GB/s, en
@@ -204,7 +210,7 @@ computador \cite{macenski2022, rosjazzydocs}.
 % Adaptación: se eliminó el texto explicativo en inglés de la imagen original.
 \begin{figure}[H]
   \centering
-  \figstub{assets/figures/ros2-nodos-topico.png}
+  \includegraphics[width=0.8\linewidth]{assets/figures/chapter-2/ros2-nodos-topico.png}
   \caption[Arquitectura basada en nodos de ROS~2.]{Arquitectura basada
   en nodos de ROS~2. Cada nodo encapsula una
   funcionalidad; los nodos intercambian datos publicando en tópicos nombrados
@@ -235,7 +241,7 @@ arquitectónica bajo estudio.
 % executors_basic_principle.png; licencia CC BY 4.0.
 \begin{figure}[H]
   \centering
-  \figstub[0.90\linewidth]{assets/figures/ros2-ejecutores-callbacks.png}
+  \includegraphics[width=\linewidth]{assets/figures/chapter-2/ros2-ejecutores-callbacks.png}
   \caption[Modelo de callbacks y ejecutores en ROS~2.]{Modelo de callbacks
   y ejecutores en ROS~2. Los callbacks se
   encolan al producirse un evento, como la llegada de un mensaje o la
@@ -269,7 +275,7 @@ serialización, en lugar de en el transporte únicamente.
 % ros_client_library_api_stack.png; licencia CC BY 4.0.
 \begin{figure}[H]
   \centering
-  \figstub[0.90\linewidth]{assets/figures/ros2-software-stack.png}
+  \includegraphics[width=\linewidth]{assets/figures/chapter-2/ros2-software-stack.png}
   \caption[Stack de software de ROS~2.]{Stack de software de ROS~2. Las
   aplicaciones se implementan sobre
   una biblioteca cliente según el lenguaje de programación (por ejemplo,
@@ -341,7 +347,7 @@ literatura.
 
 \begin{figure}[H]
   \centering
-  \figstub{assets/figures/ros2-ruta-mensaje.png}
+  \includegraphics[width=\linewidth]{assets/figures/chapter-2/ros2-ruta-mensaje.png}
   \caption[Ruta de un mensaje entre dos nodos de ROS~2 en procesos separados.]{Ruta
   de un mensaje entre dos nodos de ROS~2 en procesos separados.
   El publicador serializa el mensaje en una muestra del middleware, que se

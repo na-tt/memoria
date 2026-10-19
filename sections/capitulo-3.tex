@@ -15,28 +15,94 @@
 \section{Plataforma experimental}
 \label{sec:platform}
 
-La plataforma experimental principal es una NVIDIA Jetson Orin Nano,
-elegida como módulo embebido representativo para la visión por computador
-en el borde \cite{scalcon2024, alqahtani2026}. Las siguientes
-características del dispositivo se registran y se mantienen constantes a lo
-largo de los experimentos:
+La plataforma experimental es el kit de desarrollo NVIDIA Jetson Orin Nano
+Super (P3766), que consta de un módulo Jetson Orin Nano de 8~GB con
+disipador montado sobre la placa portadora de referencia
+\cite{nvidiacorporation2024}. La designación Super identifica la
+configuración de software del kit y no un módulo de hardware distinto: el
+mismo módulo de 8~GB admite la configuración original y la Super, y esta
+última se habilita mediante el flasheo correspondiente
+\cite{nvidiacorporation2024}. La elección del kit responde a su uso como
+módulo embebido representativo para la visión por computador en el borde
+\cite{scalcon2024, alqahtani2026}. En el resto de esta memoria se emplea la
+denominación abreviada «Jetson Orin Nano», que es la que aparece en el
+título y en el alcance del trabajo.
 
-\begin{itemize}
-  \item Módulo/modelo de Jetson: \todo{SPECIFY: exact module and developer
-        kit version}
-  \item Capacidad de RAM: \todo{SPECIFY}
-  \item Almacenamiento: \todo{SPECIFY}
-  \item Modo de energía: \todo{SPECIFY: fixed power mode for all
-        experiments. Published Orin-family evaluations distinguish power
-        modes when reporting frame rates \cite{scalcon2024}, so this
-        setting is part of the documented experimental condition.}
-  \item Configuración de enfriamiento: \todo{SPECIFY. Sustained inference
-        load raises device temperature \cite{tang2026}, so cooling is
-        fixed and documented.}
-  \item Cámara / dispositivo de entrada conectado: \todo{SPECIFY}
-  \item Temperatura de operación, donde corresponda: \todo{SPECIFY: how
-        thermal conditions are monitored}
-\end{itemize}
+La \Cref{tab:platform-configuration} reúne las características del equipo y
+las condiciones que se mantienen constantes en todas las corridas.
+
+\begin{table}[htbp]
+  \centering
+  \caption[Configuración de la plataforma experimental]{Configuración de la
+  plataforma experimental. Todos los valores se mantienen constantes a lo
+  largo de la campaña de mediciones.}
+  \label{tab:platform-configuration}
+  \begin{tabular}{@{}p{0.26\linewidth}p{0.66\linewidth}@{}}
+    \toprule
+    \textbf{Elemento} & \textbf{Configuración fija} \\
+    \midrule
+    Plataforma & Kit de desarrollo NVIDIA Jetson Orin Nano Super (P3766)
+                 \cite{nvidiacorporation2024} \\
+    Módulo & Jetson Orin Nano de 8~GB sobre la placa portadora de
+             referencia \\
+    CPU & Arm Cortex-A78AE v8.2 de seis núcleos \\
+    GPU & Ampere con 1024 núcleos CUDA y 32 Tensor Cores \\
+    Memoria & 8~GB de LPDDR5 con bus de 128~bits, unificada entre CPU y
+              GPU, con un ancho de banda de 102~GB/s \\
+    Almacenamiento & SSD NVMe FORESEE XP1000F256G de 256~GB (238,5~GiB
+                     utilizables) en la ranura M.2 Key M, que aloja el
+                     sistema operativo, el entorno de software, los datos
+                     de entrada y los registros. No se utiliza tarjeta SD \\
+    Modo de energía & 25~W, fijo en todas las corridas \\
+    Enfriamiento & Disipador y ventilador originales del kit, con la curva
+                   de control del ventilador por defecto de la plataforma;
+                   sin modificación manual de la velocidad ni
+                   refrigeración externa \\
+    Entrada & Archivo de video almacenado en el NVMe y decodificado
+              localmente; no se conecta ninguna cámara \\
+    Monitoreo & Temperatura del SoC registrada en todas las corridas, con
+                el procedimiento de la \Cref{sec:metric-measurement} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El modo de energía se fija en 25~W. El rango de potencia configurable del
+módulo va de 7~W a 25~W \cite{nvidiacorporation2024} y no es un detalle
+accesorio: las evaluaciones publicadas de la familia Orin distinguen
+explícitamente el modo de energía al informar tasas de fotogramas
+\cite{scalcon2024}, de modo que el modo forma parte de la condición
+experimental y se documenta junto con ella. Se fija el extremo superior del
+rango porque la carga de inferencia es sostenida y se busca caracterizar la
+plataforma en la capacidad de operación declarada más alta; los modos de
+menor presupuesto no se emplean porque el objeto de estudio es la
+arquitectura de la aplicación y no el efecto del modo de energía. Antes de
+cada bloque de mediciones se verifica el modo activo con el comando
+\texttt{nvpmodel -q}. Dado que los identificadores numéricos de modo
+dependen de la configuración de flasheo, la verificación se hace sobre el
+nombre del modo y su presupuesto de potencia, y no sobre el número.
+
+El enfriamiento se mantiene tal como el kit se entrega: disipador y
+ventilador originales, con la curva de control del ventilador por defecto de
+la plataforma, sin modificación manual de la velocidad ni refrigeración
+externa. Bajo carga de inferencia sostenida la temperatura del dispositivo
+aumenta de manera medible \cite{tang2026}, de modo que la temperatura del
+SoC se registra durante todas las corridas y se contrasta con los puntos de
+disparo térmico declarados por la plataforma, lo que permite afirmar si
+alguna corrida entró en limitación térmica; el procedimiento de registro se
+detalla en la \Cref{sec:metric-measurement}. El laboratorio no dispone de
+control climático, por lo que la temperatura ambiente se registra al inicio
+y al final de cada sesión de mediciones.
+
+La fuente de entrada es un archivo de video almacenado en el NVMe y
+decodificado localmente; no se conecta ninguna cámara. La elección es
+deliberada: un archivo entrega la misma secuencia de fotogramas en cada
+corrida y en cada configuración, lo que permite comparar las salidas de las
+configuraciones A, B y C fotograma a fotograma y elimina la variabilidad de
+exposición, ganancia y tasa de cuadro propia de un sensor en vivo. El
+archivo se fija en la \Cref{sec:pipeline}; su resolución debe ser al menos
+la mayor de las resoluciones experimentales de la
+\Cref{sec:configurations}, y la forma en que se sirven los fotogramas se
+especifica en la \Cref{sec:procedure}.
 
 Todos los experimentos se ejecutan en este único dispositivo, con los nodos
 de las configuraciones de ROS~2 ejecutándose como procesos separados del

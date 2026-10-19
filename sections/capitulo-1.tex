@@ -8,9 +8,8 @@
 
 \chapter{Introducción}
 \label{chap:introduction}
-
-\section{Antecedentes}
-\label{sec:background}
+\section{Motivación y contexto}
+\label{sec:motivation}
 
 Los sistemas robóticos y autónomos modernos dependen cada vez más de la visión
 por computador para percibir e interpretar su entorno. Tareas como la
@@ -244,12 +243,8 @@ arquitectónicas son un ingrediente necesario de ese esfuerzo. La
 contribución de esta memoria es una caracterización experimental de los
 compromisos de rendimiento asociados a implementar una cadena de
 procesamiento de visión por computador como un conjunto de nodos de ROS~2 en
-lugar de como un proceso monolítico en una plataforma NVIDIA embebida,
-proporcionando orientación práctica para los desarrolladores que deben
-decidir si la modularidad de ROS~2 conlleva una penalización significativa
-de rendimiento para esta clase de carga de trabajo. La memoria no cuestiona
-los beneficios de modularidad de ROS~2, ni intenta establecer una
-clasificación universal de rendimiento de los middlewares de robótica.
+lugar de como un proceso monolítico en una plataforma NVIDIA embebida; sus
+aportes específicos se detallan en la \cref{sec:contributions}.
 
 \section{Preguntas de investigación}
 \label{sec:research-questions}
@@ -311,8 +306,13 @@ Orin Nano.
         la cadena de ROS~2 se particiona en mayor grado.
 \end{itemize}
 
-\section{Alcance y limitaciones}
+\section{Alcance y contribuciones}
 \label{sec:scope}
+
+Esta sección delimita qué se evalúa en esta memoria y qué queda fuera de su
+alcance, y explicita la contribución que de ello resulta.
+
+\subsection{Alcance}
 
 Esta memoria compara dos implementaciones de la misma aplicación de visión
 por computador: una implementación monolítica de proceso único en Python y
@@ -359,11 +359,71 @@ manera más rápida posible de ejecutar visión por computador con ROS~2, sino
 qué costo en rendimiento está asociado al particionamiento de una aplicación
 de visión por computador equivalente en nodos de ROS~2 sobre una NVIDIA
 Jetson Orin Nano. Los temas excluidos se discuten como posibles trabajos
-futuros en el Capítulo~6. Las limitaciones adicionales del estudio,
-incluidos el uso de una única plataforma de hardware, una única carga de
-trabajo de visión por computador, una configuración fija de DDS y QoS, e
-implementaciones en Python, son limitaciones de alcance de un estudio
-controlado y no deficiencias, y se discuten junto con las conclusiones.
+futuros en el Capítulo~6.
+
+El alcance así definido también determina aquello sobre lo que esta memoria
+puede concluir. El uso de una única plataforma de hardware, de una única
+carga de trabajo de visión por computador, de una configuración fija de DDS y
+QoS y de implementaciones en Python acota la validez de los resultados a las
+condiciones experimentales descritas; esas limitaciones son consecuencia
+directa de las decisiones de alcance y no deficiencias del estudio, y se
+examinan junto con las conclusiones, en el Capítulo~6.
+
+\subsection{Contribuciones}
+\label{sec:contributions}
+
+La contribución de esta memoria es una caracterización experimental y
+controlada del compromiso de rendimiento asociado a implementar una cadena de
+procesamiento de visión por computador como un conjunto de nodos de ROS~2 en
+lugar de como un proceso monolítico en una plataforma NVIDIA embebida. Sus
+aportes específicos son los siguientes.
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Medición del costo de la arquitectura de línea base.} Se
+        cuantifica, bajo condiciones controladas, el efecto de adoptar la
+        arquitectura multiproceso basada en nodos que se usa en la práctica
+        como línea base. La literatura revisada mide el middleware de forma
+        aislada, con cargas útiles sintéticas \cite{maruyama2016,
+        kronauer2021, kamiya2025, luo2025, zhang2024}, o evalúa alternativas
+        como la composición de nodos frente a esa línea base sin medir la
+        línea base misma \cite{macenski2023}. Mantener constantes el
+        algoritmo, el modelo, los datos de entrada, el hardware y el lenguaje
+        de programación permite atribuir las diferencias observadas al
+        particionamiento y no a factores confundidos.
+
+  \item \textbf{Caracterización del efecto del grado de particionamiento.}
+        Un conjunto de configuraciones de ROS~2 con distinto número de nodos
+        permite determinar si el sobrecosto crece con cada frontera de
+        comunicación añadida o si se concentra en etapas específicas de la
+        cadena. El valor de este aporte es que informa una decisión de diseño
+        más fina que la elección binaria entre monolito y nodos: no solo si
+        particionar, sino en cuántas etapas conviene hacerlo.
+
+  \item \textbf{Un artefacto y un protocolo reproducibles.} Las
+        implementaciones monolítica y de ROS~2, las configuraciones
+        experimentales, el procedimiento de evaluación comparativa de
+        rendimiento y las definiciones de cada métrica quedan especificados
+        de modo que puedan reproducirse y reutilizarse. Esto responde al
+        llamado de la comunidad de robótica a una evaluación comparativa
+        estandarizada del cómputo robótico \cite{mayoral-vilches2024} y
+        permite que otros equipos repitan la comparación en sus propias
+        plataformas y cargas de trabajo.
+
+  \item \textbf{Orientación práctica para el diseño de sistemas.} Los
+        resultados se expresan en las métricas que un desarrollador puede
+        contrastar con los requisitos de su aplicación---latencia de extremo a
+        extremo, tasa de procesamiento y utilización de CPU, RAM y GPU---de
+        modo que la decisión sobre la arquitectura de una cadena de visión por
+        computador en una plataforma Jetson pueda tomarse con evidencia
+        cuantitativa acerca del costo de la modularidad de ROS~2 en esta clase
+        de carga de trabajo.
+\end{enumerate}
+
+Estos aportes son válidos para las condiciones experimentales descritas y no
+constituyen un enunciado universal. La memoria no cuestiona los beneficios de
+modularidad de ROS~2 ni emite juicios sobre implementaciones, lenguajes o
+middlewares que quedan fuera de su alcance; la generalización de sus
+resultados a otros contextos se plantea como trabajo futuro en el Capítulo~6.
 
 \section{Organización de la memoria}
 \label{sec:organization}

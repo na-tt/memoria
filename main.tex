@@ -1,6 +1,12 @@
-\documentclass[12pt,a4paper,oneside]{report}
+\documentclass[10pt,a4paper,oneside]{report}
 \usepackage[a4paper,left=25mm,right=25mm,top=30mm,bottom=30mm]{geometry}
-% Sin 'parskip': los párrafos van solo con sangría, como la tesis de referencia.
+% Sangría (1.5em = 15pt aquí) MÁS medio renglón (6pt) entre
+% párrafos, como la tesis de referencia. El paquete 'parskip' fija
+% \parskip = .5\baselineskip (6pt aquí) y evita que ese espacio se duplique
+% en listas, índices y tras los títulos; la opción 'indent' conserva la sangría
+% en lugar de ponerla en 0pt. Se carga al principio del preámbulo para que
+% 'enumitem' (más abajo) herede ya los valores de lista ajustados.
+\usepackage[indent]{parskip}
 % 'indentfirst' sangra también el primer párrafo después de un título.
 \usepackage{indentfirst}
 
@@ -11,9 +17,23 @@
 % csquotes antes de biblatex para que este use sus comillas y citas
 \usepackage[autostyle=true]{csquotes}
 
+% xcolor y pifont se usan solo en el modo de revisión de la bibliografía
+% (marcas ✓/✗ junto a cada entrada); ver commands.tex.
+\usepackage{xcolor}
+\usepackage{pifont}
+
 \usepackage[backend=biber, style=ieee]{biblatex}
 \addbibresource{referencias.bib}
-\nocite{*}
+
+% ---- Modo de revisión de la bibliografía (solo para depuración) ----
+% \revisarbibtrue  : imprime TODAS las entradas de referencias.bib (\nocite{*})
+%                    y marca en la lista cuáles están citadas (✓) y cuáles no
+%                    (✗), con un resumen final de las claves sin citar.
+% \revisarbibfalse : comportamiento normal; solo aparecen las fuentes citadas.
+% Para la versión de entrega, dejar en \revisarbibfalse.
+\newtoggle{revisarbib}
+\toggletrue{revisarbib}
+\iftoggle{revisarbib}{\nocite{*}}{}
 
 \usepackage{float} % debe cargarse antes de hyperref
 \usepackage{fancyhdr} % encabezados y pies personalizados
@@ -28,12 +48,30 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
+
+% ---- Tipografía ----
+% Estilo Latin:
+\setmainfont{Latin Modern Roman}
+\setsansfont{Latin Modern Sans}
+\setmonofont{Latin Modern Mono}
+
+% Estilo Gyre Termes / IEEE-ish
+%\setmainfont{TeX Gyre Termes}
+%\setsansfont{TeX Gyre Heros}
+%\setmonofont{Inconsolatazi4-Regular.otf}[Scale=MatchLowercase]
+%\usepackage{newtxmath}
+
 % Numeración de ecuaciones por sección: (cap.sección.ec), como la referencia.
 \numberwithin{equation}{section}
 \usepackage{datetime2} % for debug purposes only remove on final release
 
 \usepackage{siunitx} % magnitudes y unidades (\qty, columnas S)
 \usepackage{booktabs} % reglas de tabla profesionales
+
+% Nombre de los cuadros flotantes. polyglossia usa "Cuadro" en español,
+% mientras que cleveref (más abajo) usa "Tabla"; se unifica en "Tabla"
+% para que el pie y las referencias cruzadas coincidan.
+\addto\captionsspanish{\renewcommand{\tablename}{Tabla}}
 \usepackage{enumitem} % control del espaciado y etiquetas de listas
 \usepackage{microtype} % justificacion, kerning y protrusion
 
@@ -44,6 +82,9 @@
 
 \crefname{section}{sección}{secciones}
 \Crefname{section}{Sección}{Secciones}
+
+\crefname{subsection}{subsección}{subsecciones}
+\Crefname{subsection}{Subsección}{Subsecciones}
 
 \crefname{figure}{figura}{figuras}
 \Crefname{figure}{Figura}{Figuras}
@@ -83,6 +124,8 @@
 
 \include{sections/conclusiones}
 \printbibliography
+% Resumen del modo de revisión (no imprime nada si \revisarbibfalse).
+\revisionbibliografia
 \include{sections/anexos}
 
 % Incluye en el glosario las entradas que no fueron citadas con \gls{},

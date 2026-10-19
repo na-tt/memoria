@@ -9,6 +9,65 @@
 % completarlo antes de la entrega.
 \providecommand{\todo}[1]{\textbf{[TODO: #1]}}
 
+% ---------------------------------------------------------------------------
+% Modo de revisión de la bibliografía
+% Se activa con \revisarbibtrue en main.tex. Con el modo activo, la lista de
+% referencias incluye todas las entradas de referencias.bib (vía \nocite{*}) y
+% cada una se marca con ✓ si está citada en el texto o ✗ si no lo está;
+% \revisionbibliografia agrega al final un resumen con las claves sin citar.
+% Requiere biblatex, etoolbox, xcolor y pifont (cargados en main.tex).
+% ---------------------------------------------------------------------------
+\definecolor{bibcolorcitada}{HTML}{1B7F3B}   % verde: entrada citada
+\definecolor{bibcolornocitada}{HTML}{B3261E} % rojo: entrada sin citar
+
+\newcounter{bibreferencias} % entradas impresas en la lista de referencias
+\newcounter{bibnocitadas}   % de ellas, las que no están citadas
+
+\newcommand*{\bibclavescitadas}{}    % claves citadas (para el resumen)
+\newcommand*{\bibitensnocitadas}{}   % \item por cada entrada sin citar
+
+% Se ejecuta en cada clave citada de verdad (\cite, \textcite, \autocite, ...),
+% pero no en las claves de \nocite; por eso \nocite{*} no marca nada.
+\AtEveryCitekey{%
+  \iftoggle{revisarbib}{%
+    \ifcsvoid{bibcitada@\thefield{entrykey}}%
+      {\xappto\bibclavescitadas{\thefield{entrykey}, }}%
+      {}%
+    \csgdef{bibcitada@\thefield{entrykey}}{1}%
+  }{}%
+}
+
+% Se ejecuta al componer cada entrada de la lista de referencias.
+\AtEveryBibitem{%
+  \iftoggle{revisarbib}{%
+    \stepcounter{bibreferencias}%
+    \ifcsvoid{bibcitada@\thefield{entrykey}}%
+      {\textcolor{bibcolornocitada}{\ding{55}}~%%
+       \stepcounter{bibnocitadas}%%
+       \xappto\bibitensnocitadas{\noexpand\item\space\noexpand\texttt{\thefield{entrykey}}}}
+      {\textcolor{bibcolorcitada}{\ding{51}}~}%
+  }{}%
+}
+
+% Resumen final. Si se quiere teñir toda la entrada sin citar (además de la ✗),
+% reemplazar la marca de arriba por \textcolor{bibcolornocitada}{\ding{55}}\color{bibcolornocitada}
+
+\newcommand*{\revisionbibliografia}{%
+  \iftoggle{revisarbib}{%
+    \section*{Revisión de la bibliografía}
+    \noindent
+    Entradas impresas: \thebibreferencias.\quad
+    Citadas: \number\numexpr\thebibreferencias-\thebibnocitadas\relax.\quad
+    Sin citar: \thebibnocitadas.\par
+    \ifnum\thebibnocitadas>0
+      \medskip\noindent Entradas de \texttt{referencias.bib} que no se citan:
+      \begin{itemize}\bibitensnocitadas\end{itemize}
+    \else
+      \medskip\noindent Todas las entradas de \texttt{referencias.bib} están citadas.
+    \fi
+  }{}%
+}
+
 % Stub de figura: incluye la imagen si el archivo existe y, mientras no exista,
 % dibuja un recuadro de marcador de posición para que el documento siga
 % compilando. Requiere graphicx y float (cargados en main.tex).
