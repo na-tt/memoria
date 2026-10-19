@@ -1,0 +1,24 @@
+// Configuración C de la cadena de visión por computador en ROS 2.
+// Cada nodo es un proceso separado del sistema operativo y la cadena es
+// lineal: un tópico de entrada y otro de salida por nodo. Las aristas
+// etiquetadas representan el tópico y la carga útil que lo atraviesa.
+// Las configuraciones B y D se obtienen de esta cadena fusionando los nodos
+// 2 a 4, o subdividiendo los nodos 3 y 4, respectivamente.
+digraph particionamiento {
+  graph [rankdir=LR, splines=line, nodesep=0.40, ranksep=1.05, pad=0.15,
+         bgcolor="white"];
+  node  [shape=box, style="rounded,filled", fillcolor="#e8eef7",
+         color="#2f4b7c", penwidth=2, fontname="DejaVu Sans Bold",
+         fontsize=20, margin="0.26,0.16"];
+  edge  [color="#2f4b7c", penwidth=2, arrowsize=0.9,
+         fontname="DejaVu Sans Oblique", fontcolor="#676C7E", fontsize=15];
+
+  adq   [label="Adquisición\n(1)"];
+  acond [label="Acondicionamiento\n(2)"];
+  det   [label="Detección\n(3–4)"];
+  dom   [label="Dominio y\nregistro (5–7)"];
+
+  adq   -> acond [label="/imagen_entrada\n230 KB –\n2,76 MB"];
+  acond -> det   [label="/imagen_modelo\n1,23 MB"];
+  det   -> dom   [label="/detecciones\nhasta 45 KB"];
+}

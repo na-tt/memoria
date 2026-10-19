@@ -3,11 +3,13 @@
 %
 % This chapter describes the planned experimental methodology. Citations
 % use the citation keys of the project Zotero library (exported to
-% references.bib). Items that depend on decisions not yet finalized
-% (hardware details, software versions, model selection, resolutions,
-% durations, repetitions) are marked with visible \todo{...} placeholders
-% to be completed once determined; % TODO comments mark citation gaps. No
-% experimental results are reported in this chapter.
+% references.bib). The platform, the software environment, the workload, the
+% chain of operations, the node mapping of every configuration and the
+% functional-equivalence test are closed (P-01 to P-04). Items that still
+% depend on pending decisions (resolutions, driving mode, warm-up, duration,
+% repetitions, instrumentation, statistical tests; P-05 to P-08) are marked
+% with visible \todo{...} placeholders; % TODO comments mark citation gaps.
+% No experimental results are reported in this chapter.
 
 \chapter{Metodología}
 \label{chap:methodology}
@@ -126,7 +128,7 @@ el código fuente.
 \begin{table}[htbp]
   \centering
   \caption[Configuración del entorno de software]{Configuración del entorno de
-  software. Todos los valores se mantienen constantes en las tres
+  software. Todos los valores se mantienen constantes en las cuatro
   configuraciones experimentales y se verifican con el comando indicado.}
   \label{tab:software-environment}
   \begin{tabular}{@{}L{0.17\linewidth}L{0.47\linewidth}L{0.30\linewidth}@{}}
@@ -144,7 +146,10 @@ el código fuente.
     Perfil de QoS & uno solo, idéntico en todos los tópicos
       (\Cref{sec:qos}) & código de los nodos \\
     Ejecutor & \texttt{SingleThreadedExecutor} de \texttt{rclpy} en todos los
-      nodos (\Cref{sec:ros2-implementation}) & código de los nodos \\
+      nodos (\Cref{sec:executor}) & código de los nodos \\
+    Interfaces de mensajes & \texttt{sensor\_msgs} y \texttt{vision\_msgs}
+      de ROS~2 Jazzy (\texttt{ros-jazzy-vision-msgs}) & \texttt{ros2 pkg
+      prefix vision\_msgs} \\
     Intérprete de Python & CPython 3.12.3, el del sistema &
       \texttt{python3 --version} \\
     Bibliotecas de imagen & NumPy 1.26.4 y OpenCV 4.6.0, instalados desde
@@ -175,12 +180,12 @@ mitad de la campaña; (iv)~selección del middleware con la variable de entorno
 
 NumPy y OpenCV se instalan desde los paquetes de Ubuntu y no desde
 \texttt{pip}, porque los paquetes del sistema quedan fijados por
-\texttt{apt-mark hold} y garantizan el mismo binario en las tres
+\texttt{apt-mark hold} y garantizan el mismo binario en las cuatro
 configuraciones. La imagen de JetPack 7.2.1 no incluye estos módulos en el
 intérprete del sistema, de modo que su instalación es explícita y forma parte
 del procedimiento registrado. Se usa la compilación de OpenCV de Ubuntu —sin
 aceleración por GPU— porque el preprocesamiento y el postprocesamiento se
-ejecutan en la CPU en las tres configuraciones; la inferencia, que es la
+ejecutan en la CPU en las cuatro configuraciones; la inferencia, que es la
 etapa intensiva en cómputo, se ejecuta en la GPU mediante el runtime que se
 fija en la \Cref{sec:pipeline}.
 
@@ -198,7 +203,7 @@ No se usa archivo de perfil XML ni se modifican los parámetros de transporte
 de Fast DDS: la comunicación entre nodos emplea la configuración por omisión
 del middleware que, en un mismo anfitrión, combina el transporte por memoria
 compartida con UDP sobre la interfaz de retorno local. Tampoco se habilita la
-comunicación intraproceso, porque las tres configuraciones ejecutan los nodos
+comunicación intraproceso, porque las cuatro configuraciones ejecutan los nodos
 como procesos separados del sistema operativo. La condición medida corresponde
 así al despliegue que resulta de adoptar ROS~2 sin optimizaciones de
 transporte, que es precisamente el objeto de estudio.
@@ -207,7 +212,7 @@ transporte, que es precisamente el objeto de estudio.
 \label{sec:qos}
 
 Los experimentos usan un único perfil de QoS, idéntico en todos los tópicos y
-en las tres configuraciones. El perfil se declara de forma explícita en el
+en las cuatro configuraciones. El perfil se declara de forma explícita en el
 código de los nodos, en lugar de heredarse de los perfiles predefinidos de la
 biblioteca cliente, para que sus valores no dependan de la versión instalada y
 queden registrados en el artefacto versionado:
@@ -228,7 +233,7 @@ se descarta en cada caso.
 \begin{table}[htbp]
   \centering
   \caption[Perfil de QoS]{Perfil de QoS fijo. El perfil se aplica a todos los
-  tópicos y a las tres configuraciones experimentales.}
+  tópicos y a las cuatro configuraciones experimentales.}
   \label{tab:qos-policies}
   \begin{tabular}{@{}L{0.24\linewidth}L{0.20\linewidth}L{0.50\linewidth}@{}}
     \toprule
@@ -322,15 +327,16 @@ en cada muestra (\Cref{sec:metric-measurement}).
 No se deja el escalado por omisión, aunque sea la condición más próxima a un
 despliegue sin intervención, porque el escalado dinámico no reacciona a la
 arquitectura de la aplicación sino a la carga instantánea de cada dominio, y
-las tres configuraciones no imponen la misma carga de CPU: B y C ejecutan más
-procesos, más callbacks y más serialización que A. Con el escalado activo, la
+las configuraciones particionadas no imponen la misma carga de CPU: B, C y
+D ejecutan más procesos, más callbacks y más serialización que A. Con el
+escalado activo, la
 frecuencia efectiva de la CPU depende de esa carga, de modo que la
 configuración monolítica y las de ROS~2 quedan medidas en regímenes de
 frecuencia distintos y la diferencia observada deja de ser atribuible solo al
 particionamiento. La variabilidad del escalado no sería entonces ruido que se
 promedia, sino un sesgo correlacionado con la variable independiente y
 orientado en la dirección de las hipótesis H1 y H3. Fijar la frecuencia en los
-dominios de cómputo iguala el régimen en las tres configuraciones y reduce la
+dominios de cómputo iguala el régimen en las cuatro configuraciones y reduce la
 fluctuación entre repeticiones, que es la razón por la que la literatura de
 medición de ROS~2 neutraliza el escalado de frecuencia del sistema operativo
 antes de medir latencia \cite{kronauer2021}. No se recurre a
@@ -341,7 +347,7 @@ presupuesto de potencia, condición que se aparta de la establecida en la
 
 El dominio de memoria conserva su escalado por omisión. Su demanda está
 dominada por los mismos tensores de inferencia y los mismos fotogramas en las
-tres configuraciones, de modo que su respuesta no se separa sistemáticamente
+configuraciones, de modo que su respuesta no se separa sistemáticamente
 entre ellas, mientras que fijarlo en el máximo elevaría el consumo y acercaría
 al equipo a la limitación por potencia. Esa limitación, si ocurre, se detecta
 porque la temperatura y las frecuencias efectivas se registran en todas las
@@ -390,7 +396,7 @@ El modelo de red neuronal se selecciona de acuerdo con los criterios de la
 configuración exacta. La cadena ejecuta el detector YOLOv8n, de la familia
 YOLO \cite{redmon2016}, en su implementación y pesos publicados por
 Ultralytics \cite{ultralytics2023}. La \Cref{tab:model-configuration} reúne
-los valores fijados, todos idénticos en las tres configuraciones
+los valores fijados, todos idénticos en las cuatro configuraciones
 experimentales y en las tres resoluciones.
 
 Los pesos se obtienen una sola vez del origen publicado y se identifican por
@@ -412,7 +418,7 @@ se distribuye bajo esa misma licencia.
   \centering
   \caption[Configuración del modelo y de la inferencia]{Configuración del
   modelo y de la inferencia. Todos los valores se mantienen constantes en las
-  tres configuraciones experimentales y en las tres resoluciones.}
+  cuatro configuraciones experimentales y en las tres resoluciones.}
   \label{tab:model-configuration}
   \begin{tabular}{@{}L{0.18\linewidth}L{0.46\linewidth}L{0.29\linewidth}@{}}
     \toprule
@@ -496,14 +502,14 @@ cuantización altera las detecciones producidas y con ello el volumen de
 trabajo del postprocesamiento, que es una de las etapas medidas. Se descarta
 FP32 porque deja inutilizados los núcleos tensor y aleja la condición medida
 de un despliegue realista en la plataforma. La precisión se fija una sola vez
-y no se trata como variable: es la misma en las tres configuraciones y en las
+y no se trata como variable: es la misma en las cuatro configuraciones y en las
 tres resoluciones.
 
 La entrada del modelo se fija en 640$\times$640 en todas las condiciones. El
 preprocesamiento redimensiona el fotograma conservando su relación de aspecto
 y completa el relleno hasta el tamaño cuadrado (\emph{letterbox}). Una
 entrada fija permite ejecutar un único motor, sin perfiles de optimización ni
-un motor por resolución, en las nueve condiciones experimentales, y sostiene
+un motor por resolución, en las doce condiciones experimentales, y sostiene
 literalmente la afirmación de que la configuración de inferencia es idéntica
 en todas ellas. La consecuencia para el diseño experimental es explícita: la
 resolución de la secuencia de entrada no cambia el trabajo de la red, sino el
@@ -520,7 +526,7 @@ delimitadores sobreviven a los umbrales y de cuántos candidatos compiten en
 la supresión, de modo que umbrales elegidos a conveniencia harían que el
 costo medido dependiera de un parámetro ajustable en lugar de la salida de la
 red. Con los umbrales fijos, el volumen de trabajo de la etapa queda
-determinado por el modelo y es el mismo en las tres configuraciones.
+determinado por el modelo y es el mismo en las cuatro configuraciones.
 
 Como el mismo motor y la misma configuración producen las mismas detecciones
 sea cual sea el particionamiento, la igualdad de detecciones se usa como
@@ -528,8 +534,8 @@ control de equivalencia. Antes de la campaña se verifica una vez, sobre un
 fotograma fijo, que las detecciones del motor coinciden con las del archivo
 de pesos de referencia, lo que confirma que la exportación preserva el
 comportamiento del modelo; durante las corridas, la igualdad de detecciones
-entre las configuraciones A, B y C para una misma resolución se comprueba en
-el procedimiento de la \Cref{sec:procedure} y se usa como criterio de
+entre las configuraciones A, B, C y D para una misma resolución se comprueba
+en el procedimiento de la \Cref{sec:procedure} y se usa como criterio de
 validez de la corrida. Una discrepancia indicaría que las implementaciones no
 procesan la misma entrada, y la corrida correspondiente se descarta.
 
@@ -568,10 +574,10 @@ sección.
 
 Si la duración de corrida fijada en la \Cref{sec:procedure} excede la del
 clip, la secuencia se reinicia desde el primer fotograma; el reciclado es el
-mismo en las nueve condiciones, de modo que todas procesan la misma secuencia
+mismo en las doce condiciones, de modo que todas procesan la misma secuencia
 de fotogramas. El archivo de origen no se recodifica: las resoluciones
 experimentales se obtienen redimensionando cada fotograma en la etapa de
-adquisición, de modo que las nueve condiciones leen el mismo archivo y solo
+adquisición, de modo que las doce condiciones leen el mismo archivo y solo
 difieren en el tamaño al que el fotograma entra a la cadena.
 
 \section{Implementación monolítica}
@@ -598,24 +604,101 @@ permanecer en un único espacio de direcciones.
 
 Las mismas etapas lógicas se implementan como nodos de ROS~2 utilizando
 rclpy, cada uno ejecutándose como un proceso separado del sistema operativo
-en el mismo anfitrión, conectados en cadena mediante tópicos que
-transportan mensajes de imagen:
+en el mismo anfitrión. La cadena es estrictamente lineal: cada nodo recibe
+por un único tópico y publica en otro, y ningún nodo tiene más de una
+suscripción. La linealidad no es una simplificación de la implementación,
+sino la consecuencia de fijar un nodo por operación con el ejecutor y la
+suscripción única de la \Cref{sec:qos}; una cadena ramificada exigiría
+nodos con varias suscripciones y dejaría de ser comparable con un proceso
+que ejecuta las mismas operaciones en secuencia.
 
-\begin{quote}
-\texttt{Nodo A $\rightarrow$ Nodo B $\rightarrow$ Nodo C $\rightarrow$
-Nodo D}
-\end{quote}
+\subsection{Segmentación en operaciones}
+\label{sec:operations}
 
-Cada nodo publica y se suscribe con el perfil de QoS fijo de la
-\Cref{sec:qos}. El mapeo de las etapas de procesamiento a nodos preserva la
-equivalencia funcional con la implementación monolítica: dada la misma
-secuencia de entrada y el mismo modelo, ambas implementaciones producen
-salidas equivalentes.
-\todo{SPECIFY: the exact stage-to-node mapping for each configuration once
-finalized, and how functional equivalence is verified (e.g., comparing
-outputs on a fixed input sequence).}
+Las cinco etapas lógicas de la \Cref{sec:pipeline} son demasiado gruesas
+para decidir dónde se puede particionar, porque el particionamiento se
+ejerce sobre operaciones y no sobre etapas. La \Cref{tab:operations}
+descompone la cadena en las siete operaciones que la implementan y fija,
+para cada una, el tópico y el mensaje que publica. La correspondencia con
+las etapas lógicas es directa: la adquisición es la primera etapa; el
+acondicionamiento y la construcción del tensor componen el
+preprocesamiento; la detección y la supresión de no máximos, la inferencia y
+parte del postprocesamiento; la adaptación de coordenadas y el filtro de
+dominio completan el postprocesamiento; y el registro es la etapa de salida.
 
-El ejecutor es idéntico en todos los nodos y en las tres configuraciones
+\begin{table}[htbp]
+  \centering
+  \caption[Operaciones de la cadena y mensajes publicados]{Operaciones de la
+  cadena de procesamiento y mensaje que publica cada una. Las operaciones 1 y
+  2 publican \texttt{sensor\_msgs/Image} y las operaciones 3 a 6 publican
+  \texttt{vision\_msgs/Detection2DArray}. Los tamaños de carga útil son los
+  del mensaje publicado, sin cabeceras del middleware; el tamaño de los
+  mensajes de detección depende de la cantidad de detecciones y se registra
+  en el manifiesto de cada corrida.}
+  \label{tab:operations}
+  \begin{tabular}{@{}cL{0.19\linewidth}L{0.25\linewidth}L{0.31\linewidth}L{0.12\linewidth}@{}}
+    \toprule
+    \textbf{\#} & \textbf{Operación} & \textbf{Tópico de salida} &
+    \textbf{Tipo y contenido} & \textbf{Carga útil} \\
+    \midrule
+    1 & Adquisición & \texttt{/imagen\_entrada} &
+      \texttt{Image} con codificación \texttt{bgr8}; el fotograma a la
+      resolución experimental & 230~KB a 2,76~MB \\
+    2 & Acondicionamiento & \texttt{/imagen\_modelo} &
+      \texttt{Image} con codificación \texttt{rgb8}; 640$\times$640 con
+      \emph{letterbox} & 1,23~MB \\
+    3 & Detección & \texttt{/candidatas} &
+      \texttt{Detection2DArray} con las candidatas antes de la supresión de
+      no máximos & orden de KB \\
+    4 & Supresión de no máximos & \texttt{/detecciones} &
+      \texttt{Detection2DArray} con hasta 300 detecciones & hasta 45~KB \\
+    5 & Adaptación de coordenadas & \texttt{/detecciones\_marco} &
+      \texttt{Detection2DArray} en coordenadas del fotograma de entrada &
+      hasta 45~KB \\
+    6 & Filtro de dominio & \texttt{/detecciones\_}\allowbreak\texttt{relevantes} &
+      \texttt{Detection2DArray} con las clases del dominio & hasta 45~KB \\
+    7 & Registro & --- & sin tópico: acumula el resultado en memoria y lo
+      vuelca al final de la corrida & --- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Las operaciones se definen en esos términos, y no en términos más finos o
+más gruesos, por tres razones. Primero, la salida cruda del motor tiene
+84$\times$8400 valores de 32 bits, 2,82~MB por fotograma, más que cualquier
+imagen de la cadena: publicarla exigiría un tipo de mensaje que ninguna pila
+de visión de ROS~2 despliega y convertiría la frontera en un ejercicio sobre
+el transporte de un tensor. Por eso la decodificación de las candidatas se
+ejecuta dentro de la operación de detección. Segundo, el tensor de entrada
+tiene 1$\times$3$\times$640$\times$640 valores de 32 bits, 4,92~MB, y su
+construcción es la operación de menor cómputo de la cadena: una frontera en
+esa posición mediría la copia de un tensor, no el tránsito de una imagen.
+Tercero, la imagen que cruza la primera frontera es el fotograma a la
+resolución experimental ---el tamaño al que entra a la cadena según la
+\Cref{sec:input-sequence}--- y no la imagen ya redimensionada al tamaño del
+modelo, de modo que la resolución actúe sobre una carga útil real y no solo
+sobre el cómputo de la CPU.
+
+El acondicionamiento no se subdivide. Escalar y completar el relleno son dos
+pasos de la misma operación geométrica, y separarlos crearía una frontera con
+1,23~MB de carga útil y cómputo despreciable: un caso de estudio sobre el
+costo del transporte de bytes, no sobre el particionamiento de una cadena de
+visión. El escalamiento de la \Cref{sec:configurations} se concentra, en
+cambio, en operaciones de cómputo trivial con mensajes pequeños, que es lo
+que permite leer su incremento como costo de frontera.
+
+El filtro de dominio de la operación~6 es una decisión de aplicación y no un
+parámetro del modelo: retiene las categorías anotadas en el conjunto de
+entrada que existen en el conjunto de clases del modelo ---persona, bicicleta,
+automóvil, motocicleta, autobús, camión, tren y semáforo---, que es el
+conjunto que una aplicación de percepción vial consume. Se aplica después del
+tope de 300 detecciones y es idéntico en todas las configuraciones y
+resoluciones, de modo que no interviene en la comparación.
+
+\subsection{Ejecutor y determinismo}
+\label{sec:executor}
+
+El ejecutor es idéntico en todos los nodos y en las cuatro configuraciones
 experimentales: cada nodo se ejecuta con un \texttt{SingleThreadedExecutor}
 de \texttt{rclpy} y una única suscripción, con el grupo de callbacks
 mutuamente exclusivo por omisión y sin temporizadores ni servicios.\footnote{%
@@ -634,7 +717,7 @@ dentro del mismo nodo, lo que añadiría concurrencia interna y confundiría el
 efecto atribuible al particionamiento. Segundo, el orden de procesamiento es
 determinista y verificable fotograma a fotograma, condición necesaria para
 comprobar la equivalencia funcional. Tercero, mantiene el mismo número de
-hilos por proceso en las tres configuraciones, de modo que la cantidad de
+hilos por proceso en las cuatro configuraciones, de modo que la cantidad de
 hilos no varíe junto con el número de fronteras de comunicación.
 
 Esta implementación corresponde a la manera ordinaria y recomendada por
@@ -645,26 +728,126 @@ intraproceso o transporte por memoria compartida \cite{macenski2023,
 kamiya2025}---. Estudiar esta línea base de forma aislada es deliberado:
 mide la arquitectura que una adopción directa de ROS~2 produce.
 
+\subsection{Verificación de equivalencia funcional}
+\label{sec:equivalence}
+
+Que las configuraciones ejecuten las mismas operaciones en el mismo orden no
+demuestra que produzcan el mismo resultado: una conversión de color hecha en
+un nodo y no en otro, un parámetro distinto en un solo nodo o un redondeo
+intermedio producen diferencias que la comparación de rendimiento no
+revelaría. La equivalencia se verifica por eso con una prueba explícita, y no
+se afirma como consecuencia del diseño.
+
+El procedimiento es el siguiente. La implementación monolítica produce una
+salida de referencia sobre un tramo fijo de la secuencia de entrada
+(\Cref{sec:input-sequence}), que se versiona junto con el artefacto
+experimental. Cada configuración de ROS~2 procesa el mismo tramo con la
+fuente conducida a una tasa inferior a la de la etapa más lenta, de modo que
+ninguna muestra se descarte por desbordamiento de la cola; que no hubo
+descartes se comprueba contrastando la cantidad de fotogramas procesados por
+cada nodo con la cantidad de fotogramas de entrada. Las detecciones se
+comparan por índice de fotograma y no por posición en la secuencia, de modo
+que un fotograma perdido se detecta en lugar de desplazar la comparación.
+
+La comparación exige coincidencia en la cantidad de detecciones y en sus
+etiquetas de clase en el total de los fotogramas, y tolera diferencias de
+hasta 1 píxel en las coordenadas y de $10^{-3}$ en los puntajes de
+confianza. La tolerancia no reemplaza a la igualdad esperada: como las cuatro
+configuraciones ejecutan el mismo motor, los mismos pesos y el mismo
+preprocesamiento, y la serialización de punto flotante entre procesos es sin
+pérdida, la igualdad exacta es el resultado previsible, y todo fotograma
+fuera de tolerancia se investiga antes de continuar con la campaña. La prueba
+se ejecuta una vez por configuración y resolución antes de la campaña, porque
+resoluciones distintas producen detecciones distintas por diseño; durante la
+campaña, esa misma igualdad se usa como criterio de validez de cada corrida
+(\Cref{sec:procedure}).
+
 \section{Configuraciones experimentales}
 \label{sec:configurations}
 
-Se utiliza un número reducido de configuraciones, elegidas de modo que
-representen diferencias arquitectónicas significativas y no divisiones
-arbitrarias de la cadena de procesamiento:
+Las configuraciones se definen sobre la segmentación de la
+\Cref{sec:operations} con dos criterios. El primero es que cada
+configuración sea una fusión de operaciones contiguas de la cadena, de modo
+que todas ejecuten las mismas operaciones en el mismo orden y la única
+diferencia entre ellas sea dónde cruza la información un límite de proceso.
+El segundo es que estén anidadas: las fronteras de una configuración son un
+subconjunto de las de la siguiente, de modo que pasar de una a otra agrega
+fronteras sin reordenar la cadena ni alterar el trabajo de cada operación.
 
 \begin{itemize}
-  \item \textbf{Configuración A --- Monolítica:} un proceso de Python.
-  \item \textbf{Configuración B --- Particionamiento bajo:} dos nodos de
-        ROS~2.
-  \item \textbf{Configuración C --- Particionamiento mayor:} cuatro nodos
-        de ROS~2.
+  \item \textbf{Configuración A --- Monolítica:} un proceso de Python; las
+        siete operaciones en un solo espacio de direcciones y sin fronteras
+        de comunicación.
+  \item \textbf{Configuración B --- Particionamiento mínimo:} dos nodos; la
+        adquisición se separa del resto de la cadena, que es la división
+        entre el nodo que entrega los fotogramas y el que los procesa.
+  \item \textbf{Configuración C --- Particionamiento moderado:} cuatro
+        nodos; separa adquisición, acondicionamiento, detección y dominio de
+        la aplicación. Es la división que corresponde a la manera habitual
+        de estructurar una pila de percepción: un nodo de captura, uno de
+        acondicionamiento de imagen, uno de detección y uno que consume sus
+        resultados.
+  \item \textbf{Configuración D --- Particionamiento estructural:} siete
+        nodos, uno por operación. Las tres fronteras que agrega sobre C
+        transportan mensajes del orden de decenas de KB y separan
+        operaciones de cómputo trivial.
 \end{itemize}
 
-\todo{SPECIFY: the exact node boundaries for Configurations B and C, and
-the justification that they represent meaningful architectural
-differences.}
+La \Cref{tab:configurations} resume la correspondencia entre operaciones y
+nodos. Cada fila es una operación de la \Cref{tab:operations} y cada columna
+una configuración; el número de nodo indica qué proceso ejecuta la
+operación. La \Cref{fig:partitioning} muestra la configuración C en detalle.
 
-La matriz experimental principal cruza las tres configuraciones
+\begin{table}[htbp]
+  \centering
+  \caption[Correspondencia entre operaciones y nodos]{Correspondencia entre
+  las operaciones de la \Cref{tab:operations} y los nodos que las ejecutan
+  en cada configuración. Las operaciones que comparten un número se
+  ejecutan en el mismo proceso.}
+  \label{tab:configurations}
+  \begin{tabular}{@{}clcccc@{}}
+    \toprule
+    \textbf{\#} & \textbf{Operación} & \textbf{A} & \textbf{B} &
+    \textbf{C} & \textbf{D} \\
+    \midrule
+    1 & Adquisición                 & 1 & 1 & 1 & 1 \\
+    2 & Acondicionamiento             & 1 & 2 & 2 & 2 \\
+    3 & Detección                     & 1 & 2 & 3 & 3 \\
+    4 & Supresión de no máximos       & 1 & 2 & 3 & 4 \\
+    5 & Adaptación de coordenadas     & 1 & 2 & 4 & 5 \\
+    6 & Filtro de dominio             & 1 & 2 & 4 & 6 \\
+    7 & Registro                      & 1 & 2 & 4 & 7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{assets/figures/chapter-3/ros2-particionamiento.png}
+  \caption[Configuración C de la cadena en ROS~2]{Configuración C de la
+  cadena en ROS~2: cuatro procesos separados del sistema operativo y los tres
+  mensajes que cruzan sus fronteras, con el tópico y la carga útil por
+  fotograma. La configuración B fusiona los nodos 2 a 4 y la configuración D
+  subdivide los nodos 3 y 4, según la \Cref{tab:configurations}.}
+  \label{fig:partitioning}
+\end{figure}
+
+Configuración D no es una arquitectura que se proponga como despliegue
+razonable, y conviene decirlo: sus tres fronteras adicionales separan
+operaciones que difícilmente justificarían un proceso propio. Se incluye
+como escalamiento deliberado del grado de particionamiento, con dos
+propósitos. El primero es que la cantidad de fronteras deje de ser una
+variable con tres valores y pase a serlo con cuatro, lo que permite
+describir la forma de la tendencia en lugar de enumerar tres casos. El
+segundo, más importante, es que las fronteras que agrega son baratas en
+cómputo y en volumen de datos ---como muestra la
+\Cref{tab:partitioning-payloads}---, de modo que el incremento entre C y D
+admite una lectura menos ambigua: mide sobre todo el costo fijo de una
+frontera, no el costo de transportar bytes. La comparación aplicada, la que
+responde si conviene adoptar ROS~2 para esta carga de trabajo, descansa en A,
+B y C; D sostiene el análisis de la tendencia y se informa como lo que es.
+
+La matriz experimental principal cruza las cuatro configuraciones
 arquitectónicas con tres resoluciones de entrada. La resolución se incluye
 como dimensión secundaria porque el término de comunicación del compromiso
 bajo estudio escala con ella: los costos de serialización, copia y
@@ -685,7 +868,7 @@ resoluciones se seleccionan según las capacidades de la fuente de entrada:
   \item Resolución 3: \todo{SPECIFY (candidate: 1280$\times$720)}
 \end{itemize}
 
-Esto da como resultado $3 \times 3 = 9$ condiciones experimentales:
+Esto da como resultado $4 \times 3 = 12$ condiciones experimentales:
 
 % NOTE: requires \usepackage{amssymb} in the preamble for \checkmark.
 \begin{table}[htbp]
@@ -700,13 +883,93 @@ Esto da como resultado $3 \times 3 = 9$ condiciones experimentales:
     A & Proceso único & 1 proceso & \checkmark & \checkmark & \checkmark \\
     B & ROS 2          & 2 nodos   & \checkmark & \checkmark & \checkmark \\
     C & ROS 2          & 4 nodos   & \checkmark & \checkmark & \checkmark \\
+    D & ROS 2          & 7 nodos   & \checkmark & \checkmark & \checkmark \\
     \hline
   \end{tabular}
 \end{table}
 
+La \Cref{tab:partitioning-payloads} resume lo que cada configuración
+imprime al volumen de datos de un fotograma. El cálculo es una propiedad del
+diseño y no una medición: suma los tamaños de mensaje de la
+\Cref{tab:operations} para las fronteras que cada configuración conserva.
+
+\begin{table}[htbp]
+  \centering
+  \caption[Volumen de datos por configuración]{Volumen de datos que cruza
+  fronteras por fotograma, calculado a partir de los tamaños de mensaje de
+  la \Cref{tab:operations} y suponiendo el tope de 300 detecciones en cada
+  mensaje de detección. No incluye las cabeceras del middleware.}
+  \label{tab:partitioning-payloads}
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Config.} & \textbf{Fronteras} & \textbf{Res.\ 1} &
+    \textbf{Res.\ 2} & \textbf{Res.\ 3} \\
+    \midrule
+    A & 0 & 0 & 0 & 0 \\
+    B & 1 & 0,23 MB & 0,92 MB & 2,76 MB \\
+    C & 3 & 1,50 MB & 2,19 MB & 4,03 MB \\
+    D & 6 & 1,62 MB & 2,31 MB & 4,15 MB \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Esa tabla hace visibles dos propiedades del diseño que conviene declarar
+antes de la campaña. Primero, el volumen crece con la resolución y no con la
+cantidad de fronteras: A, B, C y D no son una secuencia de cuatro volúmenes
+distintos, sino cuatro formas de repartir un volumen que depende sobre todo
+del tamaño del fotograma. Segundo, el paso de C a D agrega tres fronteras y
+menos de 0,2~MB, mientras que el paso de B a C agrega dos fronteras y un
+mensaje de 1,23~MB. Por eso el diseño permite contrastes que no se confunden:
+el incremento B$\rightarrow$C incorpora el transporte de una imagen
+grande, y el incremento C$\rightarrow$D casi no incorpora transporte, de modo
+que éste último estima el costo fijo de una frontera y aquél, el costo
+asociado al tamaño del mensaje. El análisis del
+\Cref{sec:analysis} trata las comparaciones como contrastes entre
+configuraciones consecutivas, y no como una colección de comparaciones por
+pares entre las doce condiciones, precisamente para preservar esa lectura.
+
 Cada condición se repite múltiples veces, o se ejecuta por una duración fija
 suficientemente larga, para obtener mediciones estables.
 \todo{SPECIFY: number of repetitions and run duration per condition.}
+
+\subsection{Modelo de concurrencia}
+\label{sec:concurrency}
+
+La configuración monolítica procesa los fotogramas estrictamente en
+secuencia: un fotograma atraviesa las siete operaciones antes de que el
+siguiente sea leído. En las configuraciones de ROS~2 el ejecutor de un solo
+hilo garantiza que cada nodo procese un fotograma por vez, pero no impide
+que dos nodos procesen fotogramas distintos al mismo tiempo: mientras el nodo
+de detección trabaja sobre el fotograma $n$, el nodo de adquisición puede
+haber publicado ya el fotograma $n+1$. Con $k$ nodos, la cadena puede
+alcanzar hasta $k$ fotogramas en vuelo.
+
+Ese solapamiento es una propiedad emergente de la arquitectura y no una
+decisión de implementación, y tiene consecuencias para la interpretación. La
+latencia de extremo a extremo de un fotograma no cambia porque otros
+fotogramas estén en vuelo, pero la tasa de procesamiento sí, de modo que la
+diferencia entre A y las configuraciones de ROS~2 combina el efecto de las
+fronteras con el del paralelismo entre etapas. Se descarta suprimir el
+solapamiento con un mecanismo de sincronización explícito ---una barrera o
+una confirmación por fotograma enviada desde el final de la cadena--- porque
+agrega un camino de retorno y un costo que no pertenecen a ninguna de las
+arquitecturas comparadas: el resultado sería un tercer diseño. También se
+descarta dar a la línea base un pipeline solapado con hilos y colas, porque
+introduciría la concurrencia interna como una segunda variable y dejaría de
+ser el monolito que una aplicación de visión por computador suele ser. La
+comparación se interpreta, entonces, como el costo de adoptar el
+particionamiento en la forma en que ROS~2 lo produce por omisión, con el
+solapamiento incluido.
+
+La cuantía de ese solapamiento no se deja implícita: se registra en cada
+corrida contando los fotogramas en vuelo a partir de las marcas de tiempo de
+la \Cref{sec:metric-measurement}, y se informa junto con los resultados. La
+profundidad de historial fijada en la \Cref{sec:qos} interviene en el mismo
+sentido: con una sola muestra en cola, un fotograma que llega mientras el
+suscriptor está ocupado reemplaza al que estaba en espera en lugar de
+demorarlo, de modo que la contrapresión se manifiesta como fotogramas
+descartados y no como latencia acumulada. La política de descarte y el modo
+de conducción de la fuente se fijan en la \Cref{sec:procedure}.
 
 \section{Procedimiento de evaluación comparativa de rendimiento}
 \label{sec:procedure}
@@ -902,6 +1165,10 @@ comparativa de rendimiento robótica estandarizada y reproducible
   \item Resolución de entrada por experimento
   \item Configuración de QoS de ROS~2
   \item Tipo de ejecutor y grupos de callbacks
+  \item Operaciones de la cadena, fronteras de cada configuración, tópicos,
+        tipos de mensaje y codificación de imagen
+  \item Modelo de concurrencia y cantidad de fotogramas en vuelo por corrida
+  \item Tolerancia y resultado de la prueba de equivalencia funcional
   \item Modo de energía
   \item Configuración de CPU/GPU, gobernador de frecuencia y frecuencias
         efectivas registradas

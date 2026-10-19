@@ -62,7 +62,7 @@ Convenciones del documento:
 | `sections/abstract.tex` | Incompleto | Los mismos dos `\todo`, en inglés. |
 | `sections/capitulo-1.tex` | Borrador avanzado | Dos `% TODO` de cita (privacidad; adopción de rclpy). |
 | `sections/capitulo-2.tex` | Borrador avanzado | Cuatro `% TODO` sustantivos de cita/atribución; sin `\todo` visibles desde P-03. Ocho figuras. |
-| `sections/capitulo-3.tex` | Esqueleto metodológico | 15 `\todo` (la mayoría `SPECIFY`); §3.1, §3.2 y §3.3 cerradas; sin resultados. |
+| `sections/capitulo-3.tex` | Borrador avanzado | 13 `\todo` visibles, todos de P-05, P-06, P-07 y P-08; §3.1–§3.6 cerradas; sin resultados. |
 | `sections/conclusiones.tex` | Vacío | Solo `\chapter*{Conclusiones}`; no está numerado ni tiene secciones. |
 | Capítulos 4, 5 y 6 | **No existen** | `docs/plan.md` los exige y el capítulo 1 los anuncia. |
 | `sections/anexos.tex` | Relleno | `\appendix` + `\chapter{Apendice A}`. |
@@ -70,7 +70,7 @@ Convenciones del documento:
 | `referencias.bib` | Operativo | 43 entradas; 39 citadas; 4 sin citar; 2 `@standard` sin driver en biblatex. |
 | Código de la cadena y del benchmark | **No existe en este repositorio** | El capítulo 3 ya afirma que está bajo control de versiones. |
 
-El PDF compilado tiene 48 páginas. El índice general llega hasta el capítulo 3
+El PDF compilado tiene 52 páginas. El índice general llega hasta el capítulo 3
 y el apéndice; la bibliografía **no aparece en el índice**. No hay referencias
 cruzadas indefinidas, pero varias figuras y la tabla experimental no se
 referencian desde el texto.
@@ -84,8 +84,8 @@ referencian desde el texto.
 | P-01 | Fijar la plataforma experimental | **HECHO** | — | Alta |
 | P-02 | Fijar el entorno de software, DDS, QoS y ejecutor | **HECHO** | P-01 | Alta |
 | P-03 | Seleccionar la carga de trabajo y el modelo | **HECHO** | P-01, P-02 | Alta |
-| P-04 | Definir las configuraciones de particionamiento | PARCIAL | P-03 | Alta |
-| P-05 | Fijar la matriz experimental y las resoluciones | BLOQUEADO | P-03, P-04 | Alta |
+| P-04 | Definir las configuraciones de particionamiento | **HECHO** | P-03 | Alta |
+| P-05 | Fijar la matriz experimental y las resoluciones | AHORA | P-03, P-04 | Alta |
 | P-06 | Diseñar el procedimiento de benchmark | PARCIAL | P-03, P-05 | Alta |
 | P-07 | Definir la instrumentación y la medición de métricas | PARCIAL | P-02 | Alta |
 | P-08 | Preespecificar el análisis estadístico | AHORA | P-05 (para detalles) | Alta |
@@ -101,7 +101,7 @@ referencian desde el texto.
 | P-18 | Completar resumen y abstract | BLOQUEADO | P-17, P-03 | Media |
 | P-19 | Cerrar las brechas de citas de los capítulos 1–2 | AHORA | — | Media |
 | P-20 | Auditar afirmaciones cuantitativas y de novedad | AHORA | — | Media |
-| P-21 | Corregir figuras, procedencia y referencias cruzadas | PARCIAL | P-04 (figura ROS 2) | Media |
+| P-21 | Corregir figuras, procedencia y referencias cruzadas | PARCIAL | — | Media |
 | P-22 | Depurar la bibliografía y el modo de revisión | AHORA | P-19, P-20 | Media |
 | P-23 | Decidir el uso del glosario y unificar la terminología | AHORA | — | Media |
 | P-24 | Cerrar el front matter, los anexos y la limpieza del repositorio | AHORA | — | Media |
@@ -110,8 +110,8 @@ referencian desde el texto.
 Ruta crítica: **P-01 → P-02 → P-03 → P-04 → P-05 → P-06/P-07 → P-09 → P-10
 → P-11 → P-12 → P-13 → P-14 → P-15 → P-16 → P-17 → P-18 → P-25**.
 
-Trabajo que puede avanzar en paralelo desde ya: P-08, P-19, P-20, P-22, P-23
-y la parte de P-24 que no dependa de decisiones experimentales.
+Trabajo que puede avanzar en paralelo desde ya: P-05, P-08, P-19, P-20, P-22,
+P-23 y la parte de P-24 que no dependa de decisiones experimentales.
 
 ---
 
@@ -369,13 +369,103 @@ P-04, P-05, P-09 y P-18.
 
 ### P-04 · Definir las configuraciones de particionamiento
 
-**Estado actual.** §3.5 y §3.6 dejan como `\todo` el mapeo exacto de etapas a
-nodos, el tipo de ejecutor y la verificación de equivalencia funcional
-(`sections/capitulo-3.tex:149-152` y `176-178`). La figura editable
-`assets/figures/chapter-2/ros2-cadena-video.d2` propone cuatro nodos
+**Estado: completado (2026-10-19).** La decisión quedó escrita en
+`sections/capitulo-3.tex`: la segmentación en operaciones en §3.5.1
+(`sec:operations`, tabla `tab:operations`), la verificación de equivalencia en
+§3.5.3 (`sec:equivalence`), el mapeo operación→nodo en §3.6
+(`tab:configurations`, figura `fig:partitioning`) y el modelo de concurrencia
+en §3.6.1 (`sec:concurrency`). Valores fijados:
+
+- **Flujo:** siete operaciones. (1) adquisición: decodifica el clip y
+  redimensiona al tamaño experimental; (2) acondicionamiento: `letterbox` a
+  640×640 y BGR→RGB; (3) detección: tensor, TensorRT y decodificación de las
+  8400 candidatas con umbral 0,25; (4) supresión de no máximos; (5)
+  adaptación de coordenadas al marco del fotograma y descarte de cajas
+  centradas en el relleno; (6) filtro de dominio; (7) registro del resultado.
+- **Configuraciones:** A monolítica (1 proceso), B de 2 nodos
+  (`[1] | [2–7]`), C de 4 nodos (`[1] | [2] | [3–4] | [5–7]`) y **D de 7
+  nodos**, uno por operación. Son anidadas: cada una es una fusión de
+  operaciones contiguas de la siguiente, de modo que la única diferencia es
+  dónde cruza la información un límite de proceso. C es la división que
+  corresponde a una pila de percepción habitual (captura,
+  acondicionamiento, detector, consumidor).
+- **Por qué D.** Escalamiento deliberado del grado de particionamiento, no un
+  despliegue recomendado: sus tres fronteras adicionales separan operaciones
+  de cómputo trivial y transportan decenas de KB, de modo que C→D estima el
+  costo fijo de una frontera mientras B→C (mensaje de 1,23 MB) estima el
+  costo asociado al tamaño del mensaje. Con eso se rompe la colinealidad
+  entre «número de fronteras» y «bytes» que preocupaba a este pendiente.
+  Volumen calculado por fotograma: A 0; B 0,23/0,92/2,76 MB; C
+  1,50/2,19/4,03 MB; D 1,62/2,31/4,15 MB (resoluciones 1–3, tope de 300
+  detecciones). C y D difieren en menos de 0,2 MB: D agrega fronteras, no
+  tráfico.
+- **Tópicos y tipos:** `/imagen_entrada` (`sensor_msgs/Image`, `bgr8`,
+  fotograma a la resolución experimental), `/imagen_modelo` (`Image`,
+  `rgb8`, 640×640), `/candidatas`, `/detecciones`, `/detecciones_marco` y
+  `/detecciones_relevantes` (`vision_msgs/Detection2DArray`); la operación 7
+  no publica. La cadena es estrictamente lineal: un tópico de entrada y otro
+  de salida por nodo, que es lo que permite mantener una suscripción por
+  nodo con el ejecutor de P-02.
+- **Cargas útiles descartadas.** No se publica la salida cruda del motor
+  (84×8400 fp32, 2,82 MB) porque exigiría un tipo de mensaje que ninguna pila
+  de visión despliega y sería mayor que cualquier imagen; ni el tensor de
+  entrada (4,92 MB) porque su construcción es la operación de menor cómputo
+  de la cadena. Ambas quedarían dentro de la operación de detección.
+- **Etapa «salida».** Resuelta: es la operación 7 (registro). No es una etapa
+  de cómputo aparte y en C comparte nodo con el filtro de dominio, de modo
+  que la discrepancia entre cinco etapas lógicas y cuatro nodos desaparece.
+- **Filtro de dominio.** Decisión de aplicación, no parámetro del modelo:
+  retiene las categorías anotadas en BDD100K que existen en COCO (persona,
+  bicicleta, automóvil, motocicleta, autobús, camión, tren, semáforo). Se
+  aplica después del tope de 300 e idéntico en todo, así que no interviene en
+  la comparación.
+- **Equivalencia funcional.** La línea base produce una salida de referencia
+  sobre un tramo fijo, versionada con el artefacto. Cada configuración
+  procesa el mismo tramo con la fuente a una tasa inferior a la de la etapa
+  más lenta (sin muestras descartadas, comprobado contra el conteo de
+  fotogramas por nodo) y las detecciones se comparan por índice de fotograma.
+  Se exige coincidencia total en cantidad y etiquetas, y tolerancia de 1 píxel
+  en coordenadas y 10⁻³ en puntajes; la igualdad exacta es lo esperado porque
+  motor, pesos y preprocesamiento son los mismos y la serialización de punto
+  flotante es sin pérdida. Se ejecuta una vez por configuración y resolución
+  antes de la campaña; durante la campaña la misma igualdad se usa como
+  criterio de validez de la corrida (§3.3.1, §3.7).
+- **Concurrencia.** A procesa estrictamente en secuencia; en ROS 2 cada nodo
+  procesa un fotograma por vez, pero distintos nodos pueden tener fotogramas
+  distintos en vuelo (hasta $k$ fotogramas con $k$ nodos). Se declara como
+  propiedad emergente y se registra su cuantía; se descarta imponer una
+  barrera o confirmación por fotograma (agregaría un camino de retorno) y se
+  descarta dar a la línea base un pipeline solapado (sería una segunda
+  variable). Consecuencia declarada: la comparación mide el costo de adoptar
+  el particionamiento tal como ROS 2 lo produce por omisión, solapamiento
+  incluido.
+- **Figura.** `assets/figures/chapter-3/ros2-particionamiento.dot` →
+  `.png`, incluida como `fig:partitioning` en §3.6. Se redibujó con Graphviz y
+  no con D2: con D2 el texto quedaba a 1,2 mm de altura al ancho de caja de
+  texto, y Graphviz, cuyas unidades son físicas, permite verificar el tamaño
+  final. Se eliminaron `assets/figures/chapter-2/ros2-cadena-video.d2` y su
+  PNG, que representaban un mapeo ya descartado.
+
+**Cambios fuera del capítulo.** `docs/plan.md` §9 se reescribió con las cuatro
+configuraciones, sus criterios y una **nota de experimentación abierta**: el
+número de configuraciones y la ubicación exacta de las fronteras quedan
+abiertos a ajuste durante la etapa de pilotos, porque es posible que fronteras
+que separan operaciones triviales no produzcan diferencias medibles; cualquier
+ajuste se decide en los pilotos, se registra en `docs/plan.md` y en este
+archivo, y se informa como desviación. §10 pasó a 4×3 = 12 condiciones.
+`docs/future.md` §10 quedó anotado como parcialmente cubierto.
+
+**Pendiente heredado.** El mecanismo de marcas de tiempo (reloj monótono,
+identificador de fotograma entre procesos) sigue en P-07; §3.5.3 fija el
+criterio de comparación, no el mecanismo.
+
+**Estado previo (contexto histórico).** §3.5 y §3.6 dejaban como `\todo` el
+mapeo exacto de etapas a nodos, el tipo de ejecutor y la verificación de
+equivalencia funcional. La figura editable
+`assets/figures/chapter-2/ros2-cadena-video.d2` proponía cuatro nodos
 (adquisición, preprocesamiento, inferencia, postprocesamiento) con tópicos
-`/imagen_cruda`, `/imagen_procesada` y `/detecciones`, pero **no está incluida
-en el documento**. El capítulo 3 describe una cadena lógica de cinco etapas
+`/imagen_cruda`, `/imagen_procesada` y `/detecciones`, y **no estaba incluida
+en el documento**. El capítulo 3 describía una cadena lógica de cinco etapas
 (adquisición, preprocesamiento, inferencia, postprocesamiento, salida) y una
 cadena ROS 2 de cuatro nodos.
 
@@ -505,6 +595,16 @@ publica en el primer tópico (b), y queda por registrar el clip concreto de
 BDD100K con su SHA-256, contenedor, códec, número de fotogramas y fecha de
 descarga; la regla de selección ya está fijada en `sec:input-sequence`.
 
+**Nota (2026-10-19, al cerrar P-04).** P-04 resolvió el punto (b): el primer
+tópico transporta el fotograma a la resolución experimental, porque §3.3.2
+redimensiona en la etapa de adquisición y la tabla `tab:operations` fija esa
+carga útil. La matriz pasó a **4 configuraciones × 3 resoluciones = 12
+condiciones** (`tab:experimental-matrix`), de modo que P-05 solo debe fijar
+los tres valores de resolución y registrar el clip (nombre, SHA-256,
+contenedor, códec, fotogramas, fecha). La tabla `tab:partitioning-payloads` ya
+usa las resoluciones candidatas: si cambian, hay que recalcularla junto con la
+justificación de §3.6.
+
 ---
 
 ### P-06 · Diseñar el procedimiento de benchmark
@@ -570,6 +670,22 @@ paralelo aunque cada nodo sea secuencial. El procedimiento debe medir latencia
 y tasa de procesamiento por separado y no asumir que un aumento de latencia
 implica una caída de la tasa de procesamiento (o viceversa). Esa discusión
 pertenece a P-16.
+
+**Herencia de P-04 (2026-10-19).** §3.6.1 declara el modelo de concurrencia: la
+línea base es estrictamente secuencial y las configuraciones de ROS 2 solapan
+hasta $k$ fotogramas con $k$ nodos, sin barreras ni confirmaciones. El
+procedimiento no debe introducir sincronización que suprima ese solapamiento.
+Además, con `KEEP_LAST` de profundidad 1 la contrapresión se manifiesta como
+fotograma descartado y no como latencia acumulada, de modo que la política de
+descarte y el denominador de FPS tienen que declarar esa consecuencia y ser
+idénticos en A, B, C y D.
+
+**Criterio de validez (2026-10-19).** §3.3.1 y §3.5.3 remiten al procedimiento
+de §3.7 para comprobar, durante la campaña, que las detecciones de cada
+configuración coinciden con las de la línea base para la misma resolución.
+Ese paso todavía no existe en la lista de §3.7: P-06 debe agregarlo como
+criterio de validez de la corrida, con el registro de qué se compara y qué se
+hace si no coincide.
 
 ---
 
@@ -637,6 +753,14 @@ Desbloquea P-11 y P-14.
 **Notas.** Si se mide potencia, agregar la fuente de método que falta en
 `sections/capitulo-2.tex:472-474` (coordinar con P-19 y P-22).
 
+**Herencia de P-04 (2026-10-19).** Las marcas de la cadena tienen dos
+requisitos nuevos: los mensajes deben propagar sin modificar la marca de
+adquisición y un identificador de fotograma, porque §3.5.3 compara por índice
+de fotograma y no por posición; y los registros deben permitir contar los
+fotogramas en vuelo por corrida, que es la cuantía de solapamiento que §3.6.1
+promete informar. Los mensajes que cruzan fronteras se declaran en
+`tab:operations`.
+
 ---
 
 ### P-08 · Preespecificar el análisis estadístico
@@ -646,6 +770,14 @@ la distribución” (`sections/capitulo-3.tex:354`), enumera el análisis
 descriptivo y las diferencias porcentuales, y enuncia H1–H4
 (`sections/capitulo-3.tex:356-386`). No define la unidad de análisis ni cómo
 se evita la pseudorreplicación.
+
+**Herencia de P-04 (2026-10-19).** La matriz tiene 12 condiciones y las
+configuraciones están anidadas. §3.6 ya compromete que el análisis se exprese
+como contrastes entre configuraciones consecutivas (A→B, B→C, C→D) y no como
+una colección de comparaciones por pares entre las doce condiciones; P-08 debe
+preespecificar esos contrastes, su intervalo de confianza y la unidad de
+análisis, y declarar por separado la limitación de que la cadena de ROS 2
+solapa fotogramas mientras la línea base no (§3.6.1).
 
 **Objetivo.** Fijar un plan de análisis antes de la campaña final, de modo que
 las pruebas no se elijan después de ver los resultados.
@@ -741,9 +873,12 @@ versionado (ver P-11); no hay rutas absolutas ni credenciales.
 
 **Dependencias.** Requiere P-03 y P-05. Desbloquea P-10 y P-11.
 
-**Notas.** Si se decide que la línea base debe procesar fotogramas de forma
-solapada para comparar de forma justa con ROS 2 (P-04), implementarlo y
-declararlo; no dejarlo como una diferencia oculta.
+**Notas.** P-04 decidió (2026-10-19) que la línea base procesa los fotogramas
+estrictamente en secuencia: no se le da un pipeline solapado con hilos ni
+colas, porque eso introduciría la concurrencia interna como segunda variable
+(§3.6.1). El solapamiento de las configuraciones de ROS 2 se declara y se
+registra. La implementación debe ejecutar las siete operaciones de
+`tab:operations` en el mismo orden que los nodos, con las mismas funciones.
 
 ---
 
@@ -753,14 +888,16 @@ declararlo; no dejarlo como una diferencia oculta.
 separados, QoS fija y ejecutor fijo (`sections/capitulo-3.tex:129-160`), pero
 el mapeo y la verificación de equivalencia están en `\todo`.
 
-**Objetivo.** Implementar las configuraciones B y C como procesos ROS 2
+**Objetivo.** Implementar las configuraciones B, C y D como procesos ROS 2
 separados, con los tópicos, tipos, QoS y ejecutor definidos en P-02 y P-04.
 
 **Requisitos.**
 
-- Un nodo por etapa o grupo de etapas según el mapeo de P-04, cada uno como
-  proceso del sistema operativo.
-- Tópicos y tipos exactos; codificación de imagen y resolución según P-04.
+- Un nodo por operación o grupo de operaciones según `tab:configurations` de
+  P-04 (2, 4 y 7 nodos), cada uno como proceso del sistema operativo.
+- Los seis tópicos de `tab:operations` con sus tipos y codificaciones
+  (`bgr8` en el primero, `rgb8` en el segundo) y la resolución experimental en
+  el primero.
 - QoS y ejecutor idénticos en todos los nodos y configuraciones (P-02).
 - Archivos de lanzamiento o equivalente para arrancar B y C de forma
   reproducible.
@@ -1299,9 +1436,11 @@ la redacción.
   `assets/figures/chapter-2/cadena-vision-computador.png`, que representa la
   cadena lineal con las formas de datos y coincide mejor con el pie, pero **no
   se usa**.
-- `assets/figures/chapter-2/ros2-cadena-video.png` y su fuente `.d2` **no se
-  usan**; representan cuatro nodos con tópicos y tipos, y podrían servir en
-  §3.5–§3.6 si el mapeo de P-04 coincide.
+- ~~`assets/figures/chapter-2/ros2-cadena-video.png` y su fuente `.d2` no se
+  usan~~ **Resuelto en P-04 (2026-10-19).** Representaban un mapeo descartado
+  y se eliminaron. En su lugar, `assets/figures/chapter-3/ros2-particionamiento.dot`
+  (Graphviz, por legibilidad del texto al ancho de caja) → `.png`, incluida en
+  §3.6 como `fig:partitioning`, con pie, etiqueta y referencia desde el texto.
 - La figura del stack de JetPack (`sections/capitulo-2.tex:170-181`) no tiene
   procedencia declarada.
 - La figura 2.2 (módulo) y la 2.3 (kit) atribuyen la fotografía a NVIDIA
@@ -1323,9 +1462,10 @@ sea referenciada; que no queden fuentes huérfanas.
 - Resolver la procedencia de `jetpack-stack.png`: agregar fuente y licencia, o
   redibujarla como figura propia con D2/Graphviz según el contrato de
   `AGENTS.md`.
-- Decidir el destino de `ros2-cadena-video`: usarla en §3.5–§3.6 si el mapeo
-  de P-04 coincide; si no, eliminarla junto con su PNG (no dejar dos fuentes
-  que puedan generar el mismo nombre).
+- ~~Decidir el destino de `ros2-cadena-video`~~: hecho en P-04; se eliminó y
+  se reemplazó por `chapter-3/ros2-particionamiento.dot`, ya incluida y
+  referenciada. Queda solo revisar que su pie y su etiqueta sigan coincidiendo
+  si el mapeo cambia durante los pilotos.
 - Referenciar cada figura y tabla desde el texto (`\Cref{fig:...}`,
   `\Cref{tab:...}`), no solo rotularlas.
 - Verificar pies, etiquetas, créditos y licencias de todas las figuras.
@@ -1337,17 +1477,16 @@ están en `AGENTS.md` (secciones de diagramas). Las figuras de terceros deben
 conservar su licencia (por ejemplo, CC BY 4.0 para la documentación de ROS 2).
 No se redibujan figuras ajenas sin necesidad.
 
-**Entregable.** Capítulo 2 (y 3, si se usa la figura de ROS 2) con figuras
-coherentes, procedencia declarada y referencias cruzadas; assets sin huérfanos
-injustificados.
+**Entregable.** Capítulos 2 y 3 con figuras coherentes, procedencia declarada
+y referencias cruzadas; assets sin huérfanos injustificados.
 
 **Criterios de aceptación.** Cada figura coincide con su pie; cada figura y
 tabla se referencia; cada figura tiene fuente y crédito o declaración de
 autoría; no quedan pares fuente/PNG duplicados o sin uso; el PDF compila sin
 figuras faltantes.
 
-**Dependencias.** La decisión sobre `ros2-cadena-video` depende de P-04; el
-resto se puede hacer ahora.
+**Dependencias.** Ninguna. La decisión sobre la figura de ROS 2 quedó cerrada
+en P-04.
 
 **Notas.** El reporte interno `reporte-comm-ros2.md` dice que la fuente de la
 figura 2.8 es `assets/figures/ros2-ruta-mensaje.d2`, pero la fuente actual es
