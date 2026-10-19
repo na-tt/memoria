@@ -12,8 +12,10 @@ solo alimenta esas decisiones.
 **Actualización (2026-10-19).** P-03 quedó cerrado y el conjunto de origen
 decidido: **BDD100K**. La decisión está escrita en `sections/capitulo-3.tex`
 §3.3.2 (`sec:input-sequence`), junto con la regla de selección del clip y la
-política de repetición. Queda en P-05 el registro del archivo concreto y su
-SHA-256.
+política de repetición. P-05 quedó cerrado el mismo día: el clip está
+registrado con nombre, SHA-256, contenedor, códec y número de fotogramas, y
+las resoluciones experimentales están fijadas en §3.6 (ver §6 de este
+documento).
 
 Última revisión: 2026-10-19.
 
@@ -28,8 +30,8 @@ De `sections/capitulo-3.tex` §3.1 (P-01, completado) y de `docs/plan.md`:
   fotogramas en cada corrida y en cada configuración, lo que permite comparar
   las salidas de A, B y C fotograma a fotograma.
 - El archivo debe tener una **resolución al menos igual a la mayor de las
-  resoluciones experimentales**. Con las resoluciones candidatas
-  (320×240, 640×480, 1280×720), el archivo debe ser **≥ 1280×720**.
+  resoluciones experimentales**. Con las resoluciones fijadas en P-05
+  (320×180, 640×360, 1280×720), el archivo debe ser **≥ 1280×720**.
 - La procedencia debe ser **documentable y verificable**: un lector tiene que
   poder obtener el mismo archivo, y hay que poder comprobar que es el mismo.
 - La carga debe ser representativa de **detección de objetos de tráfico desde
@@ -122,13 +124,18 @@ marcada como no verificada debe comprobarse antes de escribirla en la memoria.
 Lista de verificación para P-03/P-05, coherente con §3.10 de la memoria:
 
 - [ ] Nombre exacto del archivo o del clip dentro del conjunto.
+      **Hecho:** `bdd100k/videos/100k/train/0000f77c-6257be58.mov`.
 - [x] Origen: nombre del conjunto y partición (BDD100K, partición de
       entrenamiento). Falta la fecha de descarga, que se registra al obtener
-      el archivo.
+      el archivo. **Fecha: 2026-10-19.**
 - [ ] **SHA-256** del archivo efectivamente usado.
+      **Hecho:** `313eed7b8e46ae388c9d59f4e6068d5ab6fb98ce13e0d63b48b8cdd604d76767`
+      (20 046 247 bytes).
 - [x] Resolución y tasa de cuadro: 1280×720 a 30 fps, verificado en el texto
       del conjunto. Falta el códec, el perfil y el contenedor, que se leen del
-      archivo descargado.
+      archivo descargado. **Leídos:** contenedor QuickTime, H.264 perfil High
+      nivel 4.1, 1217 fotogramas en 40,37 s (~30,1 fps promedio). Ver §6 sobre
+      la orientación codificada.
 - [x] Licencia y condiciones de uso: Berkeley DeepDrive, verificada en el
       portal y declarada en §3.3.2 de la memoria.
 - [x] Procedimiento de obtención, incluida la selección del clip: registro en
@@ -152,5 +159,66 @@ Lista de verificación para P-03/P-05, coherente con §3.10 de la memoria:
    obtienen redimensionando el fotograma en la etapa de adquisición.
 3. ~~¿Dónde se declara la licencia?~~ **Resuelto (P-03):** en §3.3.2, con la
    cita del conjunto.
-4. **Abierta (P-05):** ¿el SHA-256 del clip se imprime en la memoria o queda
-   solo en el manifiesto del artefacto?
+4. ~~¿el SHA-256 del clip se imprime en la memoria o queda solo en el
+   manifiesto del artefacto?~~ **Resuelto (P-05):** se imprime en §3.3.2,
+   además del manifiesto, con `\seqsplit` para cortarlo.
+
+---
+
+## 6. Cierre de P-05 (2026-10-19)
+
+**Resoluciones fijadas:** 320×180, 640×360 y 1280×720. Las tres son 16:9,
+como el archivo de entrada, y submúltiplos exactos de 1280×720 (1/4, 1/2 y 1
+lineal). Se descartaron 320×240 y 640×480 porque son 4:3 y obligarían a
+recortar, deformar o rellenar la imagen en la adquisición.
+
+**Clip registrado:**
+
+| Campo | Valor |
+|---|---|
+| Nombre en el conjunto | `bdd100k/videos/100k/train/0000f77c-6257be58.mov` |
+| Selección | primer archivo en orden lexicográfico de la partición de entrenamiento |
+| Tamaño | 20 046 247 bytes |
+| SHA-256 | `313eed7b8e46ae388c9d59f4e6068d5ab6fb98ce13e0d63b48b8cdd604d76767` |
+| Contenedor | QuickTime (`.mov`, *major brand* `qt`, muxer Lavf57.71.100) |
+| Códec | H.264/AVC, perfil High (100), nivel 4.1 (41) |
+| Tamaño codificado | 720×1280, con matriz de rotación de −90° en la pista |
+| Tamaño de presentación | 1280×720 |
+| Fotogramas | 1217 |
+| Duración | 40,37 s (≈30,1 fps promedio) |
+| Fecha de descarga | 2026-10-19 |
+
+**Procedencia.** Los portales oficiales no respondieron desde la red usada
+(`bdd-data.berkeley.edu` sin respuesta; `dl.cv.ethz.ch` sin resolución DNS).
+El archivo se extrajo desde una copia publicada en Hugging Face
+(`linxxx3/bdd100k_videos`) de `bdd100k_videos.zip` (MD5 declarado
+`253d9a2f9d89d2b09d8d93f397aecdd7`; 1 969 155 915 058 bytes en 19 partes de
+100 GiB). La extracción se hizo por lectura por rangos HTTP: se leyó el
+directorio central del `.zip` (12 857 856 bytes), se localizó el clip y se
+transfirieron solo sus 20 MB. La integridad se comprobó contra el CRC-32 que
+el directorio central declara para ese miembro, y la identidad contra el
+SHA-256 de arriba. La equivalencia byte a byte con la copia del portal
+oficial **no está verificada**; si se repite la descarga desde el portal,
+basta comparar el SHA-256.
+
+**Hallazgo: los fotogramas están almacenados girados.** Cinco clips
+revisados (tres de entrenamiento y dos de validación) son 720×1280
+codificados con una matriz de display de ±90° en `tkhd`, y 1196–1217
+fotogramas en 40,0–40,4 s. No es una rareza del clip elegido. Consecuencias:
+
+- La etapa de adquisición debe aplicar la matriz de display; si no, el
+  fotograma entra en retrato y las tres resoluciones dejan de tener sentido.
+  OpenCV 4.8 (`cv2.VideoCapture`, backend FFMPEG) y la CLI de FFmpeg ya
+  aplican la rotación por omisión; una lectura con `av`/PyAV o un `nvdec`
+  crudo debe aplicarla explícitamente.
+- La dirección de la rotación no es la misma en todos los clips (uno de los
+  cinco tenía el signo opuesto), de modo que conviene comprobarla por archivo
+  y no asumirla.
+- El recuento de fotogramas y la duración varían de un clip a otro; cualquier
+  cálculo de reinicio del clip debe leerlos del archivo, no suponerlos.
+
+**Verificación disponible en esta máquina (Jetson).** `ffprobe -of json` falla
+con esta compilación de FFmpeg (`--disable-everything`, sin decodificador
+H.264 por software), y el decodificador por omisión es `h264_cuvid`, que no
+carga en Orin. Para leer metadatos se usan `ffmpeg -i` o `cv2`; para decodificar
+con la CLI, `-c:v h264_nvv4l2dec`.

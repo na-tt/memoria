@@ -18,7 +18,7 @@ digraph particionamiento {
   det   [label="Detección\n(3–4)"];
   dom   [label="Dominio y\nregistro (5–7)"];
 
-  adq   -> acond [label="/imagen_entrada\n230 KB –\n2,76 MB"];
+  adq   -> acond [label="/imagen_entrada\n170 KB –\n2,76 MB"];
   acond -> det   [label="/imagen_modelo\n1,23 MB"];
   det   -> dom   [label="/detecciones\nhasta 45 KB"];
 }

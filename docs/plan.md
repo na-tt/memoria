@@ -203,7 +203,8 @@ phase 5).
 
 ## 10. Experimental Matrix
 
-A possible primary experimental matrix is shown below.
+A primary experimental matrix is shown below. The four configurations are
+those fixed in §9 and are applied unchanged to the three resolutions.
 
 | Configuration | Architecture   | Partitioning | Resolution 1 | Resolution 2 | Resolution 3 |
 |---------------|----------------|--------------|--------------|--------------|--------------|
@@ -212,13 +213,23 @@ A possible primary experimental matrix is shown below.
 | C             | ROS 2          | 4 Nodes      | ✓            | ✓            | ✓            |
 | D             | ROS 2          | 7 Nodes      | ✓            | ✓            | ✓            |
 
-Possible resolutions could be:
+The three resolutions are fixed (P-05, 2026-10-19):
+
 ```
-320 × 240
-640 × 480
-1280 × 720
+Resolution 1: 320 × 180   (1/4 linear, 1/16 area of the source)
+Resolution 2: 640 × 360   (1/2 linear, 1/4 area of the source)
+Resolution 3: 1280 × 720  (source resolution, no scaling)
 ```
-The final resolutions should be selected based on the capabilities of the chosen input and computer-vision model.
+
+All three keep the 16:9 aspect ratio of the source clip, so the acquisition
+stage only resamples the decoded frame: no crop, no padding and no
+anisotropic scaling. The resolution is a parameter of the acquisition stage,
+not of the source file — the file is not re-encoded — and it is recorded in
+the manifest of every run. The model input is fixed at 640 × 640 in all
+conditions (YOLOv8n, letterboxed), so the resolution changes the volume of
+data crossing the chain and not the compute of the neural network.
+
+The 12 conditions, then, are exhaustive: no further dimension is varied.
 
 This gives:
 

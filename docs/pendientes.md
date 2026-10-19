@@ -62,7 +62,7 @@ Convenciones del documento:
 | `sections/abstract.tex` | Incompleto | Los mismos dos `\todo`, en inglés. |
 | `sections/capitulo-1.tex` | Borrador avanzado | Dos `% TODO` de cita (privacidad; adopción de rclpy). |
 | `sections/capitulo-2.tex` | Borrador avanzado | Cuatro `% TODO` sustantivos de cita/atribución; sin `\todo` visibles desde P-03. Ocho figuras. |
-| `sections/capitulo-3.tex` | Borrador avanzado | 13 `\todo` visibles, todos de P-05, P-06, P-07 y P-08; §3.1–§3.6 cerradas; sin resultados. |
+| `sections/capitulo-3.tex` | Borrador avanzado | 10 `\todo` visibles, todos de P-06, P-07 y P-08; §3.1–§3.6 cerradas; sin resultados. |
 | `sections/conclusiones.tex` | Vacío | Solo `\chapter*{Conclusiones}`; no está numerado ni tiene secciones. |
 | Capítulos 4, 5 y 6 | **No existen** | `docs/plan.md` los exige y el capítulo 1 los anuncia. |
 | `sections/anexos.tex` | Relleno | `\appendix` + `\chapter{Apendice A}`. |
@@ -85,11 +85,11 @@ referencian desde el texto.
 | P-02 | Fijar el entorno de software, DDS, QoS y ejecutor | **HECHO** | P-01 | Alta |
 | P-03 | Seleccionar la carga de trabajo y el modelo | **HECHO** | P-01, P-02 | Alta |
 | P-04 | Definir las configuraciones de particionamiento | **HECHO** | P-03 | Alta |
-| P-05 | Fijar la matriz experimental y las resoluciones | AHORA | P-03, P-04 | Alta |
-| P-06 | Diseñar el procedimiento de benchmark | PARCIAL | P-03, P-05 | Alta |
+| P-05 | Fijar la matriz experimental y las resoluciones | **HECHO** | P-03, P-04 | Alta |
+| P-06 | Diseñar el procedimiento de benchmark | AHORA | P-03, P-05 | Alta |
 | P-07 | Definir la instrumentación y la medición de métricas | PARCIAL | P-02 | Alta |
 | P-08 | Preespecificar el análisis estadístico | AHORA | P-05 (para detalles) | Alta |
-| P-09 | Implementar la cadena monolítica | BLOQUEADO | P-03, P-05 | Alta |
+| P-09 | Implementar la cadena monolítica | AHORA | P-03, P-05 | Alta |
 | P-10 | Implementar la cadena ROS 2 | BLOQUEADO | P-04, P-09 | Alta |
 | P-11 | Construir el arnés de benchmark y versionar el artefacto | BLOQUEADO | P-06, P-07, P-09, P-10 | Alta |
 | P-12 | Ejecutar experimentos piloto | BLOQUEADO | P-09–P-11 | Alta |
@@ -110,8 +110,8 @@ referencian desde el texto.
 Ruta crítica: **P-01 → P-02 → P-03 → P-04 → P-05 → P-06/P-07 → P-09 → P-10
 → P-11 → P-12 → P-13 → P-14 → P-15 → P-16 → P-17 → P-18 → P-25**.
 
-Trabajo que puede avanzar en paralelo desde ya: P-05, P-08, P-19, P-20, P-22,
-P-23 y la parte de P-24 que no dependa de decisiones experimentales.
+Trabajo que puede avanzar en paralelo desde ya: P-06, P-08, P-19, P-20,
+P-22, P-23 y la parte de P-24 que no dependa de decisiones experimentales.
 
 ---
 
@@ -536,11 +536,75 @@ mensaje. Documentar esa limitación para el capítulo 5.
 
 ### P-05 · Fijar la matriz experimental y las resoluciones
 
-**Estado actual.** §3.6 usa tres resoluciones candidatas (320×240, 640×480 y
-1280×720) con `\todo{SPECIFY}` (`sections/capitulo-3.tex:191-193`), y la tabla
-`tab:experimental-matrix` cruza tres configuraciones con tres resoluciones
-(`sections/capitulo-3.tex:196-210`). No se define con precisión qué significa
-“resolución de entrada” ni dónde se aplica.
+**Estado: completado (2026-10-19).** La decisión quedó escrita en
+`sections/capitulo-3.tex`: las resoluciones experimentales en §3.6
+(`sec:configurations`, tabla `tab:experimental-matrix`) y la identidad del
+clip en §3.3.2 (`sec:input-sequence`). Valores fijados:
+
+- **Resoluciones:** 320×180, 640×360 y 1280×720. Las tres conservan la
+  relación de aspecto 16:9 del archivo de entrada y son submúltiplos exactos
+  de su resolución de presentación: 1/4, 1/2 y 1 en escala lineal, 1/16, 1/4
+  y 1 en área. Se descartaron las candidatas 320×240 y 640×480 porque son
+  4:3: la fuente es 16:9 y una reducción a 4:3 exigiría recortar, deformar o
+  rellenar la imagen, es decir, una operación geométrica que el diseño no
+  contempla y que haría que el detector viera contenido distinto en cada
+  condición. La resolución mayor coincide con la del archivo, de modo que
+  ninguna condición amplía la imagen.
+- **Punto de aplicación:** la resolución es un parámetro de la operación 1
+  (adquisición), que decodifica, aplica la matriz de rotación de la pista y
+  redimensiona el fotograma antes de publicarlo en `/imagen_entrada`. El
+  archivo de origen no se recodifica y el modelo recibe siempre 640×640
+  (P-03). El valor se registra en el manifiesto de cada corrida, junto con
+  los demás parámetros.
+- **Matriz:** 4 configuraciones × 3 resoluciones = 12 condiciones, sin
+  dimensiones adicionales. `tab:experimental-matrix` y `docs/plan.md` §10
+  quedaron con los valores finales; la tabla de pendientes pasa P-06 y P-09 a
+  AHORA.
+- **Cargas útiles recalculadas.** Con las resoluciones nuevas, el volumen por
+  fotograma de `tab:partitioning-payloads` es A 0; B 0,17/0,69/2,76 MB; C
+  1,45/1,97/4,04 MB; D 1,57/2,09/4,16 MB (1 MB = 10⁶ bytes, redondeado a dos
+  decimales; la convención ahora se declara en el epígrafe). La fila de la
+  operación 1 de `tab:operations` pasó a «170 KB a 2,76 MB». La diferencia
+  C−D sigue por debajo de 0,2 MB, de modo que la lectura de P-04 sobre el
+  costo fijo de una frontera se mantiene.
+- **Clip registrado:** `0000f77c-6257be58.mov`; contenedor QuickTime, H.264
+  en perfil High nivel 4.1, presentación 1280×720, 1217 fotogramas en 40,37 s,
+  20 046 247 bytes, SHA-256
+  `313eed7b8e46ae388c9d59f4e6068d5ab6fb98ce13e0d63b48b8cdd604d76767`,
+  obtenido y verificado el 2026-10-19. Nombre, hash, formato y recuento se
+  imprimen en §3.3.2 (el hash con `\seqsplit`) y el manifiesto del artefacto
+  repite la ficha.
+- **Rotación del archivo.** Los fotogramas se almacenan girados 90° y el
+  contenedor declara la rotación en la matriz de la pista: codificado
+  720×1280, presentación 1280×720. Se verificó en cinco clips del conjunto
+  (tres de entrenamiento y dos de validación): los cinco son 720×1280
+  codificados con matriz de ±90° y 1196–1217 fotogramas en 40,0–40,4 s, de
+  modo que no es una rareza del clip elegido. §3.3.2 declara que la adquisición
+  aplica la matriz; sin eso el fotograma entra en retrato y las tres
+  resoluciones dejan de tener sentido. Es un requisito para P-09.
+
+**Procedencia (por confirmar).** Los portales oficiales no fueron alcanzables
+en esta sesión: `bdd-data.berkeley.edu` no respondió y `dl.cv.ethz.ch` no
+resuelve. El clip se extrajo, por lectura por rangos del archivo comprimido,
+de una copia publicada en Hugging Face (`linxxx3/bdd100k_videos`) de
+`bdd100k_videos.zip` (MD5 declarado `253d9a2f9d89d2b09d8d93f397aecdd7`,
+1 969 155 915 058 bytes en 19 partes). La extracción se comprobó contra el
+CRC-32 que el propio archivo declara en su directorio central. El SHA-256 del
+clip es verificable con independencia del origen, pero la equivalencia byte a
+byte con la copia del portal oficial **no se comprobó**; si el autor repite la
+descarga desde el portal, basta comparar el SHA-256 y, si coincide, el
+manifiesto no cambia.
+
+**Decisión sobre el hash.** Se imprime en la memoria, además de quedar en el
+manifiesto, porque es lo que hace verificable la identidad del clip sin
+depender de una cuenta en el portal. `main.tex` ya carga `seqsplit` desde
+P-03 justamente para cortarlo.
+
+**Estado previo (contexto histórico).** §3.6 usaba tres resoluciones
+candidatas (320×240, 640×480 y 1280×720) con `\todo{SPECIFY}`, y la tabla
+`tab:experimental-matrix` cruzaba tres configuraciones con tres resoluciones.
+No se definía con precisión qué significa “resolución de entrada” ni dónde se
+aplica.
 
 **Objetivo.** Fijar las tres resoluciones y definir sin ambigüedad en qué punto
 de la cadena actúan.

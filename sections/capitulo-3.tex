@@ -564,6 +564,20 @@ procedimiento se registra junto con el artefacto, y en el manifiesto se
 anotan el nombre del archivo, su SHA-256, el contenedor, el códec, el número
 de fotogramas y la fecha de descarga. El clip no se redistribuye.
 
+El archivo seleccionado por esa regla es \texttt{0000f77c-6257be58.mov}:
+contenedor QuickTime, pista de video codificada en H.264 en perfil
+\emph{High} y nivel 4.1, presentación de 1280$\times$720, 1217 fotogramas en
+40,37~s y 20\,046\,247 bytes, registrado el 19 de octubre de 2026. Su
+SHA-256 es
+\texttt{\seqsplit{313eed7b8e46ae388c9d59f4e6068d5ab6fb98ce13e0d63b48b8cdd604d76767}};
+el manifiesto del artefacto repite el conjunto de datos de la ficha, y el
+lector lo verifica con \texttt{sha256sum} sobre el archivo que obtenga. El
+archivo almacena los fotogramas con los ejes girados y declara la rotación en
+la matriz de su pista, de modo que el tamaño codificado es 720$\times$1280 y
+el de presentación, 1280$\times$720; la adquisición aplica esa matriz al
+decodificar, y el fotograma entra a la cadena con la orientación de
+presentación.
+
 La licencia del conjunto es la del Berkeley DeepDrive, que concede permiso de
 uso, copia, modificación y distribución con fines educativos, de
 investigación y sin fines de lucro, y exige que el aviso de derechos de autor
@@ -643,7 +657,7 @@ dominio completan el postprocesamiento; y el registro es la etapa de salida.
     \midrule
     1 & Adquisición & \texttt{/imagen\_entrada} &
       \texttt{Image} con codificación \texttt{bgr8}; el fotograma a la
-      resolución experimental & 230~KB a 2,76~MB \\
+      resolución experimental & 170~KB a 2,76~MB \\
     2 & Acondicionamiento & \texttt{/imagen\_modelo} &
       \texttt{Image} con codificación \texttt{rgb8}; 640$\times$640 con
       \emph{letterbox} & 1,23~MB \\
@@ -859,14 +873,32 @@ el modelo recibe siempre un tensor de 640$\times$640
 decodificación, el preprocesamiento y el tamaño de los mensajes, y no sobre
 el costo de cómputo de la red. La resolución queda así como una variable que
 afecta el volumen de datos que atraviesa la cadena y no el trabajo de la
-GPU, que es el término del compromiso que interesa caracterizar. Las
-resoluciones se seleccionan según las capacidades de la fuente de entrada:
+GPU, que es el término del compromiso que interesa caracterizar.
 
-\begin{itemize}
-  \item Resolución 1: \todo{SPECIFY (candidate: 320$\times$240)}
-  \item Resolución 2: \todo{SPECIFY (candidate: 640$\times$480)}
-  \item Resolución 3: \todo{SPECIFY (candidate: 1280$\times$720)}
-\end{itemize}
+Las tres resoluciones experimentales son 320$\times$180, 640$\times$360 y
+1280$\times$720. Las tres conservan la relación de aspecto 16:9 del archivo
+de entrada y son submúltiplos exactos de su resolución de presentación: el
+fotograma se reduce a un cuarto, se reduce a la mitad o se deja intacto. La
+conservación de la relación de aspecto no es una preferencia: si la reducción
+cambiara la proporción, la adquisición tendría que recortar la imagen o
+deformarla, y el contenido que observa el detector dejaría de ser el mismo en
+las tres condiciones. Los submúltiplos exactos agregan una segunda propiedad:
+el área del fotograma ---y con ella el tamaño del mensaje que cruza la primera
+frontera--- se divide por dieciséis, por cuatro y por uno, de modo que la
+dimensión de resolución tiene tres niveles equiespaciados y cada paso por
+ella cuadruplica el volumen. La resolución mayor coincide con la del archivo,
+de modo que ninguna condición amplía la imagen.
+
+La resolución es un parámetro de la etapa de adquisición y no del archivo. La
+fuente no se recodifica: cada fotograma se decodifica y se redimensiona al
+tamaño de la condición antes de publicarse en el primer tópico
+(\Cref{tab:operations}), de modo que las doce condiciones leen el mismo
+archivo y lo único que cambia entre ellas es el tamaño con el que el fotograma
+entra a la cadena. La entrada del modelo no participa de la variación, porque
+el acondicionamiento aplica \emph{letterbox} a 640$\times$640 en todas las
+condiciones (\Cref{sec:model-configuration}). El valor de resolución se
+registra en el manifiesto de cada corrida junto con los demás parámetros, de
+modo que cada medición queda asociada a la condición que la produjo.
 
 Esto da como resultado $4 \times 3 = 12$ condiciones experimentales:
 
@@ -898,7 +930,8 @@ diseño y no una medición: suma los tamaños de mensaje de la
   \caption[Volumen de datos por configuración]{Volumen de datos que cruza
   fronteras por fotograma, calculado a partir de los tamaños de mensaje de
   la \Cref{tab:operations} y suponiendo el tope de 300 detecciones en cada
-  mensaje de detección. No incluye las cabeceras del middleware.}
+  mensaje de detección. No incluye las cabeceras del middleware. Los
+  tamaños se expresan en múltiplos decimales: 1~MB = $10^{6}$ bytes.}
   \label{tab:partitioning-payloads}
   \begin{tabular}{@{}lcccc@{}}
     \toprule
@@ -906,9 +939,9 @@ diseño y no una medición: suma los tamaños de mensaje de la
     \textbf{Res.\ 2} & \textbf{Res.\ 3} \\
     \midrule
     A & 0 & 0 & 0 & 0 \\
-    B & 1 & 0,23 MB & 0,92 MB & 2,76 MB \\
-    C & 3 & 1,50 MB & 2,19 MB & 4,03 MB \\
-    D & 6 & 1,62 MB & 2,31 MB & 4,15 MB \\
+    B & 1 & 0,17 MB & 0,69 MB & 2,76 MB \\
+    C & 3 & 1,45 MB & 1,97 MB & 4,04 MB \\
+    D & 6 & 1,57 MB & 2,09 MB & 4,16 MB \\
     \bottomrule
   \end{tabular}
 \end{table}
