@@ -182,7 +182,7 @@ recortar, deformar o rellenar la imagen en la adquisición.
 | SHA-256 | `313eed7b8e46ae388c9d59f4e6068d5ab6fb98ce13e0d63b48b8cdd604d76767` |
 | Contenedor | QuickTime (`.mov`, *major brand* `qt`, muxer Lavf57.71.100) |
 | Códec | H.264/AVC, perfil High (100), nivel 4.1 (41) |
-| Tamaño codificado | 720×1280, con matriz de rotación de −90° en la pista |
+| Tamaño codificado | 720×1280, con matriz de rotación de 90° en la pista |
 | Tamaño de presentación | 1280×720 |
 | Fotogramas | 1217 |
 | Duración | 40,37 s (≈30,1 fps promedio) |
@@ -193,29 +193,57 @@ recortar, deformar o rellenar la imagen en la adquisición.
 El archivo se extrajo desde una copia publicada en Hugging Face
 (`linxxx3/bdd100k_videos`) de `bdd100k_videos.zip` (MD5 declarado
 `253d9a2f9d89d2b09d8d93f397aecdd7`; 1 969 155 915 058 bytes en 19 partes de
-100 GiB). La extracción se hizo por lectura por rangos HTTP: se leyó el
-directorio central del `.zip` (12 857 856 bytes), se localizó el clip y se
-transfirieron solo sus 20 MB. La integridad se comprobó contra el CRC-32 que
-el directorio central declara para ese miembro, y la identidad contra el
-SHA-256 de arriba. La equivalencia byte a byte con la copia del portal
-oficial **no está verificada**; si se repite la descarga desde el portal,
-basta comparar el SHA-256.
+100 GiB). La integridad se comprobó contra el CRC-32 que el directorio
+central declara para ese miembro, y la identidad contra el SHA-256 de arriba.
+La equivalencia byte a byte con la copia del portal oficial **no está
+verificada**; si se repite la descarga desde el portal, basta comparar el
+SHA-256.
 
-**Hallazgo: los fotogramas están almacenados girados.** Cinco clips
-revisados (tres de entrenamiento y dos de validación) son 720×1280
-codificados con una matriz de display de ±90° en `tkhd`, y 1196–1217
-fotogramas en 40,0–40,4 s. No es una rareza del clip elegido. Consecuencias:
+**Extracción reproducible.** El procedimiento general está en
+`docs/scripts/zipfetch.py`: lee el Zip64 EOCD por `Range`, descarga el
+directorio central del `.zip` (12 857 856 bytes), localiza los miembros y
+transfiere solo sus bytes, traduciendo el desplazamiento absoluto al trozo
+correspondiente. Un clip cuesta ~33 MB de tráfico en lugar de ~1,97 TB.
+
+```sh
+./docs/scripts/zipfetch.py \
+  --url "https://huggingface.co/datasets/linxxx3/bdd100k_videos/resolve/main/bdd100k_videos/bdd100k_videos.zip.part-{i:05d}" \
+  --parts 19 --part-size 107374182400 --last-part-size 36420631858 \
+  --member "bdd100k/videos/100k/train/0000f77c-6257be58.mov" -o clip.mov
+```
+
+Copia local de los diez primeros clips de la partición de entrenamiento (el
+primero es el registrado; los otros nueve sirven para revisar propiedades del
+conjunto) en `~/Downloads/BDD100K`, con `MANIFIESTO.md` y `sha256sums.txt`
+(210 MB en total):
+
+```sh
+./docs/scripts/zipfetch.py \
+  --url "https://huggingface.co/datasets/linxxx3/bdd100k_videos/resolve/main/bdd100k_videos/bdd100k_videos.zip.part-{i:05d}" \
+  --parts 19 --part-size 107374182400 --last-part-size 36420631858 \
+  --match "^bdd100k/videos/100k/train/.*\\.mov$" --limit 10 \
+  -d ~/Downloads/BDD100K
+```
+
+**Hallazgo: los fotogramas están almacenados girados.** Los diez clips
+revisados son 720×1280 codificados con una matriz de display de 90° en
+`tkhd` y presentación de 1280×720; no es una rareza del clip elegido. Los
+diez son `avc1` perfil High nivel 4.1, con 1202–1223 fotogramas en
+40,09–40,72 s. Consecuencias:
 
 - La etapa de adquisición debe aplicar la matriz de display; si no, el
   fotograma entra en retrato y las tres resoluciones dejan de tener sentido.
   OpenCV 4.8 (`cv2.VideoCapture`, backend FFMPEG) y la CLI de FFmpeg ya
   aplican la rotación por omisión; una lectura con `av`/PyAV o un `nvdec`
   crudo debe aplicarla explícitamente.
-- La dirección de la rotación no es la misma en todos los clips (uno de los
-  cinco tenía el signo opuesto), de modo que conviene comprobarla por archivo
-  y no asumirla.
+- La dirección de la rotación alterna entre clips: seis de los diez tienen un
+  signo y cuatro el opuesto. Conviene comprobarla por archivo y no asumirla.
 - El recuento de fotogramas y la duración varían de un clip a otro; cualquier
   cálculo de reinicio del clip debe leerlos del archivo, no suponerlos.
+- `cv2.CAP_PROP_FPS` informa 59,94 en tres de los diez clips. Es un valor
+  espurio derivado del `stts` del contenedor: la tasa media real es
+  fotogramas/duración (29,98–30,20). No usar esa propiedad para conducir la
+  fuente ni para verificar la duración.
 
 **Verificación disponible en esta máquina (Jetson).** `ffprobe -of json` falla
 con esta compilación de FFmpeg (`--disable-everything`, sin decodificador

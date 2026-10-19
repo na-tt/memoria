@@ -28,6 +28,10 @@ the thesis PDF and must never be included in the build:
   the workload of the detection chain.
 - `docs/reporte-comm-ros2.md` — internal report on how a message travels between
   two ROS 2 nodes; backs figure `fig:ros2-ruta-mensaje`.
+- `docs/scripts/zipfetch.py` — extracts individual members of a remote
+  (possibly split) `.zip` over HTTP `Range`. Used to pull single BDD100K clips
+  from the ~1.97 TB video package without downloading it; the exact command
+  lives in `docs/fuentes-video.md` §6.
 
 ## Scope discipline
 

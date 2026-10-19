@@ -576,12 +576,24 @@ clip en §3.3.2 (`sec:input-sequence`). Valores fijados:
   repite la ficha.
 - **Rotación del archivo.** Los fotogramas se almacenan girados 90° y el
   contenedor declara la rotación en la matriz de la pista: codificado
-  720×1280, presentación 1280×720. Se verificó en cinco clips del conjunto
-  (tres de entrenamiento y dos de validación): los cinco son 720×1280
-  codificados con matriz de ±90° y 1196–1217 fotogramas en 40,0–40,4 s, de
-  modo que no es una rareza del clip elegido. §3.3.2 declara que la adquisición
-  aplica la matriz; sin eso el fotograma entra en retrato y las tres
-  resoluciones dejan de tener sentido. Es un requisito para P-09.
+  720×1280, presentación 1280×720. Se verificó en los diez primeros clips de
+  la partición de entrenamiento: los diez son 720×1280 codificados con matriz
+  de rotación de 90° (signo variable), `avc1` perfil High nivel 4.1, y
+  1202–1223 fotogramas en 40,09–40,72 s, de modo que no es una rareza del
+  clip elegido. La dirección alterna entre clips (seis de un signo, cuatro del
+  opuesto). §3.3.2 declara
+  que la adquisición aplica la matriz; sin eso el fotograma entra en retrato
+  y las tres resoluciones dejan de tener sentido. Es un requisito para P-09.
+  Atención además con `cv2.CAP_PROP_FPS`: informa 59,94 en tres de los diez
+  clips por un `stts` anómalo; la tasa media real es fotogramas/duración
+  (29,98–30,20), y no debe usarse esa propiedad para conducir la fuente.
+
+**Extracción reproducible.** `docs/scripts/zipfetch.py` lee el directorio
+central del `.zip` por HTTP `Range` y transfiere solo los miembros pedidos:
+unos 33 MB por clip en lugar de 1,97 TB. Los diez primeros clips de
+entrenamiento quedaron en `~/Downloads/BDD100K`, con `MANIFIESTO.md` y
+`sha256sums.txt`; el primero es el que se usa en la campaña y los otros nueve
+sirven para revisar propiedades del conjunto.
 
 **Procedencia (por confirmar).** Los portales oficiales no fueron alcanzables
 en esta sesión: `bdd-data.berkeley.edu` no respondió y `dl.cv.ethz.ch` no
