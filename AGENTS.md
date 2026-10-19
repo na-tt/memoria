@@ -16,6 +16,19 @@ Before making substantive suggestions or changes, consult the files in the 'docs
 
 These documents are the primary source of truth for project direction.
 
+### Working documents
+
+The same directory also holds internal working material that is **not** part of
+the thesis PDF and must never be included in the build:
+
+- `docs/pendientes.md` — task backlog. Each entry is a self-contained unit of
+  work (current state, open decisions, constraints, deliverable, acceptance
+  criteria). Read the relevant entry, not the whole file.
+- `docs/fuentes-video.md` — internal note on the candidate video sources for
+  the workload of the detection chain.
+- `docs/reporte-comm-ros2.md` — internal report on how a message travels between
+  two ROS 2 nodes; backs figure `fig:ros2-ruta-mensaje`.
+
 ## Scope discipline
 
 Do not expand the thesis scope merely because a potentially interesting

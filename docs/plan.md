@@ -197,7 +197,7 @@ measurable difference in the metrics, in which case the high end of the range
 contributes nothing to the characterization and a different placement (for
 instance, at points that carry larger payloads) would be more informative.
 Any such adjustment must be decided during the pilot phase, recorded in this
-document and in `pendientes.md`, and reported as a deviation from the planned
+document and in `docs/pendientes.md`, and reported as a deviation from the planned
 methodology. The matrix must not grow once the final campaign has begun (§17,
 phase 5).
 

@@ -1488,8 +1488,8 @@ figuras faltantes.
 **Dependencias.** Ninguna. La decisión sobre la figura de ROS 2 quedó cerrada
 en P-04.
 
-**Notas.** El reporte interno `reporte-comm-ros2.md` dice que la fuente de la
-figura 2.8 es `assets/figures/ros2-ruta-mensaje.d2`, pero la fuente actual es
+**Notas.** El reporte interno `docs/reporte-comm-ros2.md` dice que la fuente de
+la figura 2.8 es `assets/figures/ros2-ruta-mensaje.d2`, pero la fuente actual es
 `assets/figures/chapter-2/ros2-ruta-mensaje.dot`. Actualizar esa referencia si
 el reporte se conserva (ver P-24).
 
@@ -1633,7 +1633,7 @@ después de cada uno; `\gls` puede alterar mayúsculas y artículos.
 - `sections/body/` está vacío.
 - En la raíz hay artefactos de compilación (`main.bbl-SAVE-ERROR`,
   `main.bcf-SAVE-ERROR`, `LaTeX Compiler.log`) y un reporte interno
-  (`reporte-comm-ros2.md`).
+  (`docs/reporte-comm-ros2.md`).
 - El glosario se imprime **antes** del índice general; el orden habitual es
   índice, listas y luego glosario (o al final). Es una decisión de formato.
 - `git status` muestra cambios sin confirmar en `commands.tex`, `main.tex`,
@@ -1665,9 +1665,9 @@ limpio, sin contenido provisorio ni artefactos confusos.
   índice; si se mueve, actualizar `main.tex` y verificar la numeración romana.
 - **Archivos huérfanos.** Proponer al autor la eliminación de
   `sections/desarrollo.tex`, `sections/body/` y los artefactos `SAVE-ERROR`;
-  no borrar sin confirmación. Mover `reporte-comm-ros2.md` a `docs/` o dejarlo
-  fuera del repositorio de entrega, y actualizar su referencia a la fuente
-  `.d2`/`.dot` si se conserva.
+  no borrar sin confirmación. El reporte interno ya quedó en
+  `docs/reporte-comm-ros2.md` y se conserva en el repositorio; falta actualizar
+  su referencia a la fuente `.d2`/`.dot`.
 - **Git.** Confirmar los cambios actuales en commits pequeños y comprensibles
   después de verificar que el build funciona; no perder trabajo del autor. El
   movimiento de figuras debe quedar como un cambio coherente.
