@@ -5,11 +5,9 @@
 % use the citation keys of the project Zotero library (exported to
 % references.bib). The platform, the software environment, the workload, the
 % chain of operations, the node mapping of every configuration, the
-% functional-equivalence test and the benchmark procedure are closed
-% (P-01 to P-06). Items that still depend on pending decisions (the
-% instrumentation of each metric and the statistical analysis; P-07 and P-08)
-% are marked with visible \todo{...} placeholders; % TODO comments mark
-% citation gaps.
+% functional-equivalence test, the benchmark procedure, the instrumentation of
+% each metric and the statistical analysis are closed (P-01 to P-08). % TODO
+% comments mark citation gaps.
 % No experimental results are reported in this chapter.
 
 \chapter{Metodología}
@@ -1769,9 +1767,17 @@ manera:
         tendencia consistente a través de las resoluciones.
 \end{enumerate}
 
-Donde corresponda, las pruebas estadísticas se seleccionan tras examinar los
-datos recopilados y su distribución.
-\todo{SPECIFY: tests to be applied once the data distribution is known.}
+Ese listado fija qué se calcula y en qué orden, pero no cómo se decide. Los
+apartados siguientes fijan, antes de la campaña, la unidad de análisis, los
+contrastes, las pruebas, la regla con la que se elige entre una prueba y otra,
+la magnitud que se informa, el tratamiento de las comparaciones múltiples y
+los criterios con los que se evalúa cada hipótesis. El motivo para fijarlos
+ahora es que la elección de la prueba después de ver los datos admite ---aun
+sin intención--- el sesgo de quedarse con la que produce el resultado más
+favorable, y el lector no tendría cómo distinguir una decisión de método de
+una decisión de resultado. Por eso el plan no deja ninguna elección
+estadística abierta: una prueba no prevista se informa como exploratoria y no
+sustituye a la que aquí se declara (\Cref{sec:confirmatory}).
 
 El análisis evalúa las siguientes hipótesis, enunciadas aquí como
 predicciones y no como expectativas que deban confirmarse; los resultados
@@ -1807,6 +1813,464 @@ reducen la cantidad de fronteras de proceso recuperan recursos sustanciales
 experimental para esta carga de trabajo, plataforma y biblioteca cliente,
 dado que la magnitud del sobrecosto en relación con el cómputo dominante de
 la inferencia es exactamente lo que los estudios previos no aíslan.
+
+\subsection{Unidad de análisis, diseño e interpretación}
+\label{sec:analysis-unit}
+
+La réplica de este experimento es la corrida, no el fotograma. Una ventana de
+60~s conduce entre varios cientos y algunos miles de fotogramas, y tratarlos
+como observaciones independientes multiplicaría por varios cientos el tamaño
+de muestra nominal sin agregar información: los fotogramas de una
+misma corrida comparten la temperatura de partida, la disposición de la
+memoria, el estado de los gobernadores y la posición dentro del bloque, que
+son precisamente las fuentes de variación que la aleatorización por bloques
+reparte entre condiciones. Su dispersión mide la variabilidad de un fotograma
+dentro de una condición, no la variabilidad entre corridas, que es la única a
+la que se puede atribuir un error estándar. Tratar miles de fotogramas como
+miles de réplicas produciría intervalos de confianza arbitrariamente
+estrechos, y valores $p$ arbitrariamente pequeños, para diferencias que caben
+dentro de la variabilidad entre corridas. Es el error de pseudoreplicación, y
+el plan lo evita por construcción. La advertencia no es propia de este trabajo:
+la literatura sobre evaluación comparativa de rendimiento sostiene que una
+medición debe informarse con repeticiones e intervalos de confianza, porque un
+valor único no permite distinguir una diferencia entre sistemas del ruido del
+equipo \cite{hoefler2015, georges2007}.
+
+En consecuencia, cada corrida aporta un valor por métrica, obtenido con la
+regla de agregación de la \Cref{tab:metric-instrumentation}, y cada contraste
+se estima sobre el par de valores de las dos corridas del mismo bloque. La
+unidad de análisis y la unidad de repetición del procedimiento coinciden, lo
+que no es casual: la \Cref{sec:run-sequence} ya había fijado la corrida como
+la unidad que se repite diez veces, porque lo que varía entre corridas no se
+conserva entre los fotogramas de una misma corrida.
+
+El diseño es pareado por bloque. Cada bloque contiene una corrida de cada una
+de las doce condiciones en orden aleatorio, de modo que dos condiciones
+cualesquiera se comparan sobre dos corridas que compartieron temperatura de
+partida, sesión del equipo y posición en la campaña. El pareamiento es una
+propiedad del diseño y no una decisión de análisis, y es la razón por la que
+se emplean pruebas para datos pareados. El orden dentro del bloque se
+aleatoriza para que una deriva del equipo no quede confundida con una
+condición, pero no se modela un efecto de posición: la posición se examina
+como diagnóstico exploratorio (\Cref{sec:confirmatory}) y, si mostrara un
+efecto apreciable, se informa junto con los resultados.
+
+Las métricas de latencia y de tasa tienen cola derecha y se comparan como
+cocientes, no como diferencias aditivas. Por eso los contrastes se estiman
+sobre el logaritmo de la métrica: el logaritmo convierte el cociente de la
+\Cref{eq:overhead} en una diferencia, de modo que el intervalo de confianza
+de esa diferencia es, tras exponenciar, el intervalo del sobrecosto relativo.
+La transformación no supone normalidad de la métrica; la normalidad, cuando la
+prueba elegida la exige, se verifica sobre las diferencias y no sobre los
+valores.
+
+La latencia que se compara proviene solo de la ventana regulada, y la tasa de
+procesamiento y la utilización de recursos, solo de la ventana saturada. La
+razón está en la \Cref{sec:discards}: en la ventana saturada los fotogramas
+descartados no producen muestra de latencia, de modo que la latencia que
+sobrevive está recortada por la tasa de cada configuración, y el recorte
+favorece a las configuraciones más lentas justo en la cola que se quiere
+comparar. Las latencias de la ventana saturada se registran y se informan como
+diagnóstico, pero no se contrastan entre condiciones.
+
+Por último, la comparación de tasa entre la configuración monolítica y las de
+ROS~2 no estima un sobrecosto de comunicación puro, y el análisis no la
+presenta como tal. Las configuraciones de ROS~2 solapan fotogramas mientras la
+línea base procesa estrictamente en secuencia (\Cref{sec:concurrency}), de
+modo que la diferencia de tasa combina el efecto de las fronteras con el del
+paralelismo entre etapas. Esa combinación es la que responde a la pregunta de
+despliegue ---cuánto rinde cada arquitectura en la forma en que efectivamente
+se ejecuta--- y por eso se contrasta; el sobrecosto de la \Cref{eq:overhead},
+en cambio, se calcula sobre la latencia y no sobre la tasa. Los fotogramas en
+vuelo por condición se informan al lado de la tasa, porque sin ellos la
+diferencia de tasa no es interpretable.
+
+La utilización de recursos tiene una ambigüedad del mismo tipo y se declara
+también. En la ventana saturada cada configuración ejecuta a la tasa que
+alcanza, de modo que su consumo por unidad de tiempo mezcla el costo por
+fotograma con la cantidad de fotogramas que completa: dos configuraciones con
+el mismo costo por fotograma difieren en su utilización si difieren en su tasa.
+Por eso el contraste de recursos se informa junto con el tiempo de CPU por
+fotograma completado, que separa ambos términos, y ese desglose se informa como
+exploratorio (\Cref{sec:confirmatory}), porque H3 se enuncia sobre los recursos
+consumidos y no sobre el costo unitario.
+
+\subsection{Contrastes y pruebas preespecificadas}
+\label{sec:analysis-contrasts}
+
+Los contrastes primarios son los tres incrementos entre configuraciones
+consecutivas, estimados por separado en cada resolución. Sea $Y^{(r)}_{k,b}$ el
+valor de la métrica de la corrida de la configuración $k\in\{A,B,C,D\}$, en la
+resolución $r$ y en el bloque $b$. El contraste entre dos configuraciones
+consecutivas es
+\begin{equation}
+  d^{(r)}_{k\to k',b} = \ln Y^{(r)}_{k',b} - \ln Y^{(r)}_{k,b},
+  \qquad \theta^{(r)}_{k\to k'} = \mathrm{E}\left[d^{(r)}_{k\to k',b}\right],
+  \qquad R = e^{\theta}, \qquad \rho = R - 1,
+  \label{eq:contrast}
+\end{equation}
+donde $R$ es la razón entre las dos configuraciones y $\rho$ es el sobrecosto
+relativo de la \Cref{eq:overhead} expresado como proporción. El estimador de
+$\rho$ es, así, el de la razón de las medias geométricas de la métrica; la
+versión aritmética de la \Cref{eq:overhead}, calculada con las medias de las
+diez corridas, se informa también, y la diferencia entre ambas se declara
+cuando sea visible en la cifra publicada.
+
+El cuarto contraste resume el efecto del particionamiento como una tendencia y
+no como tres escalones independientes. Las cuatro configuraciones agregan
+fronteras sin reordenar la cadena (\Cref{sec:configurations}), de modo que
+admiten un contraste lineal con coeficientes espaciados por el número de
+fronteras:
+\begin{equation}
+  T^{(r)}_{b} = \frac{1}{3}\sum_{k} c_k \ln Y^{(r)}_{k,b},
+  \qquad c = (-3,-1,1,3),
+  \qquad T = \mathrm{E}\left[T_b\right],
+  \label{eq:trend}
+\end{equation}
+tal que $e^{T}$ es el factor multiplicativo medio que agrega cada frontera de
+comunicación adicional; un valor mayor que uno es la forma cuantitativa de la
+predicción H4. El mismo contraste se estima por resolución, lo que permite
+examinar si la tendencia es la misma en las tres.
+
+El quinto contraste es una interacción entre el particionamiento y la
+resolución, que es la forma de responder si el sobrecosto depende del tamaño
+del fotograma. Como las tres resoluciones son submúltiplos exactos
+(\Cref{sec:configurations}), el área crece en pasos de un factor cuatro, y el
+contraste lineal sobre los logaritmos es
+\begin{equation}
+  I_{b} = \sum_{l} w_l\, d^{(r_l)}_{k\to k',b},
+  \qquad w = (-1,0,1),
+  \label{eq:interaction}
+\end{equation}
+donde $l$ indexa las tres resoluciones en orden creciente de área. El contraste
+recorre dos pasos de un factor cuatro, de modo que $e^{I/2}$ es el factor en
+que se multiplica la razón entre configuraciones por cada cuadruplicación del
+área del fotograma.
+
+Los contrastes quedan así en nueve incrementos entre fronteras ---tres
+fronteras por tres resoluciones---, tres tendencias y tres interacciones. No
+son las 66 comparaciones por pares que admiten las doce condiciones, y las
+restantes no se informan como si formaran parte del plan: los contrastes entre
+A y C o entre A y D, que algunos lectores esperarán, se informan como
+descriptivos, porque dos fronteras a la vez no separan el costo fijo de una
+frontera del costo de transportar el mensaje que agrega la intermedia.
+
+Para cada contraste, la prueba primaria es la prueba \emph{t} pareada sobre las
+diez diferencias. Su supuesto es que las diferencias se distribuyen de forma
+aproximadamente normal, no que las métricas lo hagan, y el diseño pareado no
+exige homocedasticidad entre condiciones: la variabilidad que interviene es la
+de las diferencias, que se informa. El supuesto se verifica con la prueba de
+Shapiro--Wilk \cite{shapiro1965} sobre las diez diferencias, con un nivel de
+0,10 y no de 0,05,
+porque con diez observaciones esa prueba tiene poca potencia y conviene
+equivocarse hacia la prueba que no exige normalidad. La regla es única y se
+aplica igual a todos los contrastes confirmatorios: si Shapiro--Wilk no
+rechaza ($p>0{,}10$), se usa la prueba \emph{t} pareada bilateral; si rechaza,
+se usa la prueba de rangos con signo de Wilcoxon \cite{wilcoxon1945},
+bilateral, con valor $p$ exacto. En la prueba de Wilcoxon las diferencias nulas
+se descartan y se
+informa cuántas hubo; si quedan menos de seis diferencias no nulas, no se
+aplica prueba y el contraste se informa solo con su intervalo y con el
+recuento de signos. La combinación ---prueba no paramétrica pareada con umbral
+corregido por comparaciones múltiples--- es la que la literatura de comparación
+de algoritmos sobre múltiples conjuntos de datos recomienda por su robustez
+frente a la no normalidad y a la multiplicidad \cite{demsar2006}.
+
+Con diez pares, el menor valor $p$ bilateral que la prueba de Wilcoxon puede
+alcanzar es $2/2^{10}\approx 0{,}002$, que sigue por debajo del umbral más
+exigente que introduce la corrección de la \Cref{sec:analysis-multiplicity}
+($0{,}0028$ en la familia de dieciocho pruebas). El valor extremo de la prueba
+no paramétrica queda así alcanzable, lo que no ocurriría con una corrección
+sobre el total de las pruebas.
+
+Quedan descartadas, por escrito, las alternativas que suelen elegirse después
+de ver los datos. La prueba de Mann--Whitney y el análisis de varianza de un
+factor, con su versión de Kruskal--Wallis, tratan las observaciones como
+independientes entre condiciones, lo que aquí es falso porque cada bloque
+contiene una corrida de cada condición; aplicarlas descartaría el pareamiento
+y, con diez observaciones por condición, perderían la potencia que el diseño ya
+pagó. Un modelo mixto con los fotogramas anidados en corridas no se usa porque
+la unidad de análisis ya es la corrida y, con diez corridas por condición, el
+efecto aleatorio tendría diez niveles: no aportaría grados de libertad que la
+agregación por corrida no dé, a cambio de un supuesto distribucional
+adicional. Y si un bloque pierde una de las dos condiciones de un contraste,
+ese bloque no entra en el contraste: el análisis se hace por bloques
+completos, se informa cuántos quedaron y no se sustituye la prueba pareada por
+una independiente para recuperar el bloque perdido.
+
+\subsection{Estadísticos, magnitud del efecto e intervalos de confianza}
+\label{sec:analysis-effects}
+
+El estadístico de latencia de una corrida es la media de la latencia de
+extremo a extremo de los fotogramas de su ventana regulada, que es la cantidad
+con la que está escrita la \Cref{eq:overhead}. Se informa además la mediana, y
+el análisis se repite sobre ella como verificación de que la conclusión no
+depende del estadístico elegido; esa repetición es exploratoria
+(\Cref{sec:confirmatory}).
+
+Por cada contraste se informan cinco cantidades, y ninguna sustituye a las
+otras: el sobrecosto relativo $\rho$ con su intervalo de confianza al
+95~\%; la diferencia absoluta en milisegundos o microsegundos, para que la
+magnitud no quede solo en un porcentaje; el tamaño del efecto estandarizado
+$d_z = \bar d / s_d$ \cite{lakens2013} cuando la prueba es la \emph{t}
+pareada; el estimador de Hodges--Lehmann del desplazamiento cuando la prueba es
+la de Wilcoxon; y los
+diez valores por corrida, que se publican con la tabla de contraste para que
+el lector pueda reconstruir el cálculo. El intervalo se obtiene de la
+distribución \emph{t} con nueve grados de libertad en el caso paramétrico, y
+por \emph{bootstrap} con corrección de sesgo y aceleración \cite{efron1994}
+sobre los diez pares en el caso no paramétrico, con 10\,000 réplicas y una
+semilla que se
+registra con el artefacto. En ambos casos el intervalo se informa en la escala
+del cociente, tras exponenciar, de modo que se lee directamente como «de tanto
+a tanto por ciento más de latencia».
+
+El valor $p$ no decide la magnitud \cite{wasserstein2016}, y por eso se
+informan las dos cosas. Una
+diferencia estadísticamente significativa puede ser irrelevante para adoptar
+una arquitectura, y una diferencia grande con un intervalo ancho puede ser la
+que una campaña posterior deba resolver; el análisis describe la magnitud y su
+incertidumbre, y discute la relevancia en el capítulo de discusión, no en el
+de resultados.
+
+Los percentiles se calculan por corrida, sobre los fotogramas de la ventana,
+con interpolación lineal, igual que en la \Cref{sec:metric-measurement}. El
+valor de una condición es la mediana de los diez valores de sus corridas, con
+su intervalo por \emph{bootstrap}, y se informa junto con el percentil
+calculado sobre los fotogramas de todas las corridas de la condición, que es
+descriptivo. P95 se informa en cuanto la corrida tenga al menos 100 fotogramas
+en la ventana. P99 exige 1\,000: si la corrida no los alcanza, el percentil no
+se estima por corrida y se informa solo el valor agrupado de la condición,
+marcado como descriptivo y sin comparación inferencial entre condiciones, ya
+que con menos de mil observaciones el percentil queda determinado por un
+puñado de valores de la cola y su variabilidad entre corridas no es estimable.
+La ventana regulada produce un número de fotogramas que depende del divisor
+$k$ que fije el piloto (\Cref{sec:driving}), de modo que esta regla se
+resuelve en la práctica cuando ese valor se conoce, y el valor de $k$ se
+informa con los resultados.
+
+\subsection{Comparaciones múltiples}
+\label{sec:analysis-multiplicity}
+
+Las pruebas confirmatorias se agrupan en cinco familias, y la corrección se
+aplica dentro de cada familia con el procedimiento de Holm \cite{holm1979},
+que controla la tasa de error por familia al 5~\% y es uniformemente más
+potente que la corrección de Bonferroni. La \Cref{tab:analysis-families} enumera las
+familias, la métrica de cada una y la dirección que las hipótesis predicen.
+
+\begin{table}[htbp]
+  \centering
+  \caption[Familias de pruebas confirmatorias]{Familias de pruebas
+  confirmatorias del análisis. La corrección de Holm se aplica dentro de cada
+  familia; los contrastes no se corrigen entre familias
+  (\Cref{sec:analysis-multiplicity}).}
+  \label{tab:analysis-families}
+  \begin{tabular}{@{}L{0.09\linewidth}L{0.23\linewidth}L{0.10\linewidth}L{0.09\linewidth}L{0.13\linewidth}L{0.20\linewidth}@{}}
+    \toprule
+    \textbf{Hip.} & \textbf{Métrica} & \textbf{Ventana} &
+    \textbf{Familia} & \textbf{Pruebas} & \textbf{Dirección predicha} \\
+    \midrule
+    H1 & Latencia de extremo a extremo, media por corrida & Regulada & F1 &
+    9 (3$\times$3) & $R>1$ en A$\to$B, B$\to$C y C$\to$D \\
+    H2 & Tasa de procesamiento, por corrida & Saturada & F2 & 9 (3$\times$3) &
+    $R\le 1$ en los mismos tres incrementos \\
+    H3 & Tiempo de CPU de la cadena y memoria media de la cadena &
+    Saturada & F3 & 18 (2$\times$9) & $R\ge 1$ en los mismos tres
+    incrementos \\
+    H4 & Latencia de extremo a extremo, en escala logarítmica & Regulada &
+    F4 & 3 (una por resolución) & $e^{T}>1$, factor por frontera \\
+    --- & Cambio del sobrecosto con la resolución & Regulada & F5 &
+    3 (una por frontera) & Sin dirección predicha \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Las familias no se corrigen entre sí, y la decisión tiene una razón de
+contenido y otra de cantidad. De contenido: cada familia contrasta una
+hipótesis distinta sobre un resultado distinto ---latencia, tasa, recursos y
+tendencia---, y el lector interpreta cada una por separado; una corrección
+global respondería a la pregunta de si alguna de las cuarenta y dos
+afirmaciones es falsa, que no es la pregunta del trabajo. De cantidad:
+corregir sobre el total fijaría el umbral más exigente en
+$0{,}05/42\approx0{,}0012$, por debajo del menor valor $p$ que la prueba de
+Wilcoxon alcanza con diez pares ($0{,}002$), de modo que un contraste podría
+tener un efecto enorme y no alcanzaría nunca la significancia. Una corrección
+que hace inalcanzable el rechazo no controla el error: deja la prueba sin
+capacidad de decidir.
+
+Se informa, por cada contraste, el valor $p$ sin ajustar y el ajustado, junto
+con el tamaño de su familia, para que la corrección sea auditable. No se usa
+la tasa de falsos descubrimientos \cite{benjamini1995}: es el criterio adecuado
+para cribar muchas
+hipótesis y tolerar que una proporción de los rechazos sea falsa, mientras que
+aquí el conjunto es pequeño, está definido antes de la campaña y cada rechazo
+se interpreta de forma individual.
+
+\subsection{Hipótesis, métricas y criterios de decisión}
+\label{sec:analysis-hypotheses}
+
+La \Cref{tab:analysis-families} también fija a qué hipótesis corresponde cada
+familia, de modo que la cadena entre una predicción, la métrica que la pone a
+prueba y la prueba que la decide esté escrita antes de la campaña.
+
+Para cada hipótesis, la conclusión se clasifica en una de cuatro categorías con
+esta regla: \emph{sostenida} si todas sus pruebas confirmatorias son
+significativas tras la corrección y con el signo predicho; \emph{parcialmente
+sostenida} si el signo coincide en todas pero alguna deja de ser significativa
+tras la corrección; \emph{contradicha} si alguna prueba significativa tiene el
+signo contrario al predicho; y \emph{no resuelta} en los demás casos. Se
+informa el patrón completo de contrastes y no solo la etiqueta, porque la
+etiqueta sin el patrón oculta justamente lo que interesa, que es en qué
+resolución o en qué frontera la predicción se cumple y en cuál no.
+
+Dos precisiones sobre esa regla. La primera es que H2 está enunciada como
+«igual o mayor», y una igualdad no se demuestra por ausencia de diferencia
+significativa: el análisis no declara equivalencia entre la línea base y las
+configuraciones de ROS~2, porque para eso haría falta un margen de equivalencia
+fijado de antemano y la pregunta del trabajo no lo requiere. La conclusión se
+enuncia en los términos que los datos permiten: que no se observó que las
+configuraciones de ROS~2 fueran más rápidas, con el intervalo de la razón
+informando cuánto más lentas podrían ser. La segunda es que H3 se enuncia sobre
+CPU y memoria, y así se contrasta: sobre el tiempo de CPU de la cadena, que la
+\Cref{sec:metric-measurement} atribuye mediante un ámbito de control, y sobre la
+memoria media de la cadena. La utilización de CPU del sistema completo se
+informa como descriptiva, porque incluye el monitoreo y el resto del sistema, y
+la de GPU se mide
+(\Cref{sec:metric-measurement}), pero el indicador disponible es una
+activación agregada del dominio y H3 no contiene una predicción sobre ella, de
+modo que se informa como descriptiva.
+
+% NOTE (P-08): plan.md §5 enunciates H3 over CPU and memory only. Widening it
+% to GPU would require changing plan.md §5, the H3 item above and the row of
+% tab:analysis-families together; the analysis already measures GPU, so the
+% cost is editorial. Left as is pending the author's decision.
+
+\subsection{Valores atípicos, datos faltantes y análisis de sensibilidad}
+\label{sec:analysis-outliers}
+
+La única exclusión de datos que el plan admite por regla es la de los
+fotogramas de calentamiento, que el procedimiento ya descarta antes de abrir
+cada ventana (\Cref{sec:run-sequence}). No hay una segunda pasada que elimine
+fotogramas lentos: la cola de la distribución de latencia es el objeto de P95 y
+P99, y recortarla eliminaría justamente lo que el análisis quiere describir.
+
+Una corrida válida tampoco se excluye por el valor de sus métricas, porque
+excluir la corrida lenta sesga el resultado hacia la condición que produce
+menos sorpresas. Lo que se hace es marcarla: una corrida se marca como atípica
+cuando su estadístico de latencia queda fuera del intervalo
+$[Q_1-3\,\mathrm{IQR},\ Q_3+3\,\mathrm{IQR}]$ calculado sobre las diez
+corridas de su condición, y la marca se informa. El análisis primario incluye
+las corridas marcadas; además se repite, como análisis de sensibilidad
+declarado de antemano, sin la corrida marcada y dejando fuera el bloque que la
+contiene, y si la conclusión cambia se informan las dos versiones y se dice
+cuál cambió y por qué. Lo que no se hace es elegir, entre las dos versiones,
+la que convenga.
+
+Los datos faltantes se tratan por bloques completos: un contraste se estima
+solo con los bloques en que ambas condiciones tienen corrida válida, sin
+imputación de ningún tipo, y se informa cuántos bloques entraron en cada
+contraste. Las corridas inválidas se repiten al final del bloque según la
+\Cref{sec:run-sequence}, y esa repetición es la única forma prevista de
+reponer una corrida; no se agregan repeticiones para mejorar un resultado. El
+recuento de corridas válidas, inválidas y repetidas por condición se informa
+con los resultados, junto con el registro de desviaciones de la
+\Cref{sec:run-sheet}.
+
+\subsection{Análisis confirmatorio y análisis exploratorio}
+\label{sec:confirmatory}
+
+El plan distingue dos clases de resultado y las informa por separado.
+
+Es confirmatorio el conjunto de las cuarenta y dos pruebas de las cinco
+familias de la \Cref{tab:analysis-families}: nueve incrementos de latencia,
+nueve de tasa, dieciocho de recursos, tres tendencias y tres interacciones. Sus
+resultados se informan como la respuesta a las hipótesis, con la corrección
+que corresponda.
+
+Es exploratorio todo lo demás, y se informa como tal, con su intervalo y sin
+valor $p$ ajustado: los percentiles P99 agrupados; el análisis sobre la mediana
+de la latencia; la latencia sin la adquisición; la latencia de la ventana
+saturada; el tiempo de CPU de la cadena por fotograma, que separa el costo por
+unidad de trabajo de la tasa a la que se ejecuta; la utilización de CPU del
+sistema completo y el núcleo más cargado; la utilización y la
+frecuencia de la GPU; la potencia, la energía por fotograma y los fotogramas
+por vatio; la temperatura; los descartes por frontera; los fotogramas en
+vuelo; los contrastes A$\to$C y A$\to$D; el efecto de la posición dentro del
+bloque; y la verificación de sensibilidad al perfil de QoS del piloto
+(\Cref{sec:run-sequence}). Esta lista no prohíbe mirar otros datos: declara
+que, si se informan, se informan con esa etiqueta.
+
+El plan se fija antes de la campaña, y la versión que se aplica es la del
+commit del artefacto experimental que registra la hoja de ejecución de cada
+corrida (\Cref{tab:run-manifest}), de modo que la versión del análisis queda
+identificada por el mismo dato que identifica el código con que se midió. Una
+prueba no prevista que se realice durante el análisis se informa como
+exploratoria y no reemplaza a la del plan; si el plan tuviera que modificarse,
+la modificación, su motivo y su fecha se anotan en el registro de desviaciones
+(\Cref{sec:run-sheet}) y los resultados afectados se informan como
+exploratorios. Ninguna cifra del capítulo de resultados proviene de una prueba
+elegida después de ver los datos.
+
+\subsection{Potencia y número de bloques}
+\label{sec:analysis-power}
+
+Con diez bloques, un nivel de significancia de 0,05 bilateral y una prueba
+\emph{t} pareada, la potencia de 80~\% se alcanza para diferencias de
+aproximadamente $1{,}0$ desviaciones estándar de las diferencias pareadas; con
+el umbral que impone la corrección de Holm en una familia de nueve pruebas
+($0{,}0056$), el efecto mínimo detectable sube a aproximadamente $1{,}45$
+desviaciones estándar. El diseño detecta, entonces, efectos grandes y no
+matices. Cuánto es eso en unidades de latencia depende de la variabilidad
+entre corridas, que la campaña piloto estima y que la campaña final no puede
+conocer de antemano; por eso el número de bloques no se fija por intuición.
+
+La campaña piloto provee la desviación estándar de las diferencias, y con ella
+se aplica esta regla antes de la primera corrida de la campaña final: se
+calcula el número de bloques necesario para una potencia de 80~\% frente al
+efecto observado en el piloto para el incremento A$\to$B en la resolución
+mayor, que es el contraste que combina una frontera con el mensaje de mayor
+tamaño; si ese número excede diez, se agrega el número de bloques que falte, en
+bloques completos. El número de bloques nunca se reduce por debajo de diez, no
+se repiten corridas para mejorar un resultado y el número final se registra en
+el manifiesto de la campaña antes de comenzar.
+
+\subsection{Especificación del análisis para la implementación}
+\label{sec:analysis-spec}
+
+Todo lo anterior se implementa en un script cuya estructura queda fijada aquí,
+para que la programación no reintroduzca decisiones que el método ya tomó:
+
+\begin{enumerate}
+  \item Leer de la base de la campaña la tabla de corridas, las ventanas y los
+        registros por fotograma, y el resultado de validez de cada corrida tal
+        como lo dejó el procedimiento; el script no vuelve a decidir si una
+        corrida es válida.
+  \item Calcular, por corrida y por ventana, los agregados de la
+        \Cref{tab:metric-instrumentation}: estadísticos de latencia, tasa,
+        utilización y sus máximos, descartes por frontera y fotogramas en
+        vuelo.
+  \item Construir la tabla de corridas: una fila por corrida válida, con la
+        condición, el bloque, el estadístico de cada métrica y los percentiles
+        que la regla de la \Cref{sec:analysis-effects} permita estimar.
+  \item Estimar los contrastes de las
+        \Cref{eq:contrast,eq:trend,eq:interaction}, aplicar la regla de prueba
+        de la \Cref{sec:analysis-contrasts} con sus umbrales como constantes,
+        y calcular el tamaño del efecto y el intervalo de cada uno.
+  \item Aplicar la corrección de Holm dentro de cada familia y clasificar cada
+        hipótesis con la regla de la \Cref{sec:analysis-hypotheses}.
+  \item Emitir las tablas y las figuras del capítulo de resultados y, con
+        ellas, un archivo de trazabilidad que asocie cada número publicado con
+        las corridas que lo originan, la estadística aplicada y la versión del
+        script.
+\end{enumerate}
+
+El script verifica además las precondiciones que el plan declara: si un
+contraste no alcanza el número mínimo de bloques o de diferencias no nulas,
+emite «no estimable» en lugar de un valor $p$. La semilla del \emph{bootstrap},
+el orden de las filas y el formato de las cifras son fijos, de modo que dos
+ejecuciones sobre los mismos datos producen el mismo artefacto, y las cifras se
+formatean con coma decimal y con las unidades de la
+\Cref{tab:metric-instrumentation}.
 
 \section{Reproducibilidad}
 \label{sec:reproducibility}

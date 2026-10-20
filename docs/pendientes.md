@@ -62,12 +62,12 @@ Convenciones del documento:
 | `sections/abstract.tex` | Incompleto | Los mismos dos `\todo`, en inglés. |
 | `sections/capitulo-1.tex` | Borrador avanzado | Dos `% TODO` de cita (privacidad; adopción de rclpy). |
 | `sections/capitulo-2.tex` | Borrador avanzado | Tres `% TODO` de cita/atribución (el de potencia se cerró en P-07); sin `\todo` visibles desde P-03. Ocho figuras. |
-| `sections/capitulo-3.tex` | Borrador avanzado | 1 `\todo` visible, de P-08 (§3.9); §3.1–§3.8 cerradas desde P-07; sin resultados. |
+| `sections/capitulo-3.tex` | Borrador avanzado | Sin `\todo` visibles: §3.1–§3.9 cerradas (P-07 y P-08); §3.9 quedó con el plan de análisis y su especificación para P-14; sin resultados. |
 | `sections/conclusiones.tex` | Vacío | Solo `\chapter*{Conclusiones}`; no está numerado ni tiene secciones. |
 | Capítulos 4, 5 y 6 | **No existen** | `docs/plan.md` los exige y el capítulo 1 los anuncia. |
 | `sections/anexos.tex` | Relleno | `\appendix` + `\chapter{Apendice A}`. |
 | `glosario.tex` | Prueba de concepto | 31 entradas; ninguna se invoca con `\gls`. |
-| `referencias.bib` | Operativo | 43 entradas; 39 citadas; 4 sin citar; 2 `@standard` sin driver en biblatex. |
+| `referencias.bib` | Operativo | 56 entradas; 52 citadas; 4 sin citar (`fang2026`, `omg2015dds`, `omg2022ddsirtps`, `roshomepage`); 2 `@standard` sin driver en biblatex. Todo el archivo lo genera BBT desde Zotero: no editar a mano (ver P-22). |
 | Código de la cadena y del benchmark | **No existe en este repositorio** | El capítulo 3 ya afirma que está bajo control de versiones. |
 
 El PDF compilado tiene 52 páginas. El índice general llega hasta el capítulo 3
@@ -88,7 +88,7 @@ referencian desde el texto.
 | P-05 | Fijar la matriz experimental y las resoluciones | **HECHO** | P-03, P-04 | Alta |
 | P-06 | Diseñar el procedimiento de benchmark | **HECHO** | P-03, P-05 | Alta |
 | P-07 | Definir la instrumentación y la medición de métricas | **HECHO** | P-02 | Alta |
-| P-08 | Preespecificar el análisis estadístico | AHORA | P-05 (para detalles) | Alta |
+| P-08 | Preespecificar el análisis estadístico | **HECHO** | P-05 (para detalles) | Alta |
 | P-09 | Implementar la cadena monolítica | AHORA | P-03, P-05 | Alta |
 | P-10 | Implementar la cadena ROS 2 | BLOQUEADO | P-04, P-09 | Alta |
 | P-11 | Construir el arnés de benchmark y versionar el artefacto | BLOQUEADO | P-06, P-07, P-09, P-10 | Alta |
@@ -110,8 +110,8 @@ referencian desde el texto.
 Ruta crítica: **P-01 → P-02 → P-03 → P-04 → P-05 → P-06/P-07 → P-09 → P-10
 → P-11 → P-12 → P-13 → P-14 → P-15 → P-16 → P-17 → P-18 → P-25**.
 
-Trabajo que puede avanzar en paralelo desde ya: P-07, P-08, P-19, P-20,
-P-22, P-23 y la parte de P-24 que no dependa de decisiones experimentales.
+Trabajo que puede avanzar en paralelo desde ya: P-09, P-19, P-20, P-22, P-23
+y la parte de P-24 que no dependa de decisiones experimentales.
 
 ---
 
@@ -996,68 +996,169 @@ P-02; hay que verificarla antes de la campaña.
 
 ### P-08 · Preespecificar el análisis estadístico
 
-**Estado actual.** §3.9 deja los tests como `\todo{SPECIFY}` “una vez conocida
-la distribución” (`sections/capitulo-3.tex:354`), enumera el análisis
-descriptivo y las diferencias porcentuales, y enuncia H1–H4
-(`sections/capitulo-3.tex:356-386`). No define la unidad de análisis ni cómo
-se evita la pseudorreplicación.
+**Estado: completado (2026-10-20).** §3.9 quedó reescrita y sin `\todo`:
+fija la unidad de análisis, el diseño pareado por bloque, los contrastes, la
+regla que elige entre prueba paramétrica y no paramétrica, el tamaño del
+efecto y su intervalo, la corrección por comparaciones múltiples, los
+percentiles, la correspondencia entre hipótesis y pruebas, el tratamiento de
+atípicos y faltantes, la separación entre análisis confirmatorio y
+exploratorio, la potencia y la especificación del script de P-14. Agrega tres
+ecuaciones (`eq:contrast`, `eq:trend`, `eq:interaction`), una tabla
+(`tab:analysis-families`) y nueve subsecciones (§3.9.1–§3.9.9).
+
+**Punto de partida.** §3.9 dejaba los tests como `\todo{SPECIFY}` “una vez
+conocida la distribución”, enumeraba el análisis descriptivo y las
+diferencias porcentuales, y enunciaba H1–H4. No definía la unidad de análisis
+ni cómo se evita la pseudorreplicación; ese `\todo` era el último visible del
+capítulo.
+
+**Decisiones registradas.**
+
+- **Unidad de análisis: la corrida, no el fotograma.** Cada corrida aporta un
+  valor por métrica con la agregación de `tab:metric-instrumentation` y cada
+  contraste se estima sobre el par de corridas del mismo bloque (10 pares).
+  Tratar los fotogramas como réplicas sería pseudorreplicación: comparten
+  temperatura, memoria y posición, y los intervalos se estrecharían sin
+  información nueva. Se descarta el modelo mixto con fotogramas anidados en
+  corridas: el efecto aleatorio tendría diez niveles, no aportaría grados de
+  libertad que la agregación por corrida no dé y agregaría un supuesto
+  distribucional.
+- **Diseño pareado por bloque.** Cada bloque ya contiene una corrida de cada
+  condición en orden aleatorio, de modo que el pareamiento es una propiedad
+  del diseño y no una decisión posterior. El efecto de posición no se modela:
+  se examina como diagnóstico exploratorio.
+- **Escala y estadísticos.** Contrastes sobre el logaritmo de la métrica, de
+  modo que `rho = e^theta - 1` es la versión multiplicativa de `eq:overhead` y
+  el intervalo de la diferencia de logaritmos es, tras exponenciar, el del
+  sobrecosto relativo. La normalidad, cuando la prueba la exige, se verifica
+  sobre las diferencias y no sobre las métricas. Estadístico primario de
+  latencia: la media de la ventana regulada (la cantidad con la que está
+  escrita `eq:overhead`); la mediana se analiza como verificación
+  exploratoria.
+- **Ventanas.** Latencia solo de la regulada; tasa y recursos solo de la
+  saturada; la latencia de la saturada queda como diagnóstico, porque su
+  recorte depende de la tasa de cada configuración (§3.7.2). Se declara en
+  §3.9.1 que la diferencia de tasa incluye el solapamiento de §3.6.1, que por
+  eso no se presenta como sobrecosto de comunicación puro y que los
+  fotogramas en vuelo se informan al lado de la tasa. El contraste de recursos
+  usa el **tiempo de CPU de la cadena** (cgroup) y no el porcentaje de
+  `tegrastats`, como P-07 ya había registrado, y se acompaña del tiempo de CPU
+  por fotograma, que separa el costo unitario de la tasa alcanzada.
+- **Contrastes.** Nueve incrementos (3 fronteras × 3 resoluciones) + tres
+  tendencias con coeficientes `(-3,-1,1,3)` + tres interacciones con
+  `(-1,0,1)`. El contraste de tendencia estima el factor multiplicativo por
+  frontera agregada (`e^T`); la interacción, el cambio del sobrecosto por
+  cuadruplicación del área (`e^{I/2}`). No se informan las 66 comparaciones por
+  pares: A→C y A→D quedan descriptivos porque no separan el costo fijo de una
+  frontera del costo de transportar el mensaje intermedio.
+- **Pruebas y supuestos.** `t` pareada bilateral; Shapiro–Wilk sobre las diez
+  diferencias con nivel 0,10 (y no 0,05, porque con n = 10 tiene poca
+  potencia); si rechaza, Wilcoxon de rangos con signo bilateral con p exacto;
+  diferencias nulas descartadas y contadas; con menos de seis no nulas, sin
+  prueba. Se descartan por escrito Mann–Whitney y ANOVA/Kruskal–Wallis
+  (suponen independencia entre condiciones, que el diseño pareado no tiene) y
+  el modelo mixto. Un bloque incompleto no se recupera con una prueba
+  independiente: se analiza por bloques completos.
+- **Efecto e intervalos.** Se informan `rho` con IC 95 %, la diferencia
+  absoluta en ms o µs, `d_z`, el estimador de Hodges–Lehmann (rama no
+  paramétrica) y los diez valores por corrida. IC por `t` con 9 gl o por
+  `bootstrap` BCa con 10 000 réplicas y semilla registrada.
+- **Comparaciones múltiples.** Cinco familias —F1 latencia (9), F2 tasa (9),
+  F3 CPU y memoria (18), F4 tendencia (3), F5 interacción (3): 42 pruebas— y
+  Holm dentro de cada familia. Sin corrección entre familias, por contenido y
+  por cantidad: `0,05/42 ≈ 0,0012` queda por debajo del mínimo p alcanzable
+  del Wilcoxon exacto con diez pares (`0,002`), de modo que una corrección
+  global dejaría ese contraste sin capacidad de rechazar nunca. Se descarta
+  FDR (es para cribar muchas hipótesis).
+- **Percentiles.** P95 por corrida (mínimo 100 fotogramas) y valor de la
+  condición = mediana de las diez, con IC; P99 exige 1000 fotogramas por
+  corrida y, si no los hay, se informa un único P99 agrupado por condición,
+  descriptivo y sin comparación inferencial.
+- **Hipótesis y criterios.** Regla de cuatro categorías —sostenida,
+  parcialmente sostenida, contradicha, no resuelta— con el patrón de
+  contrastes publicado junto a la etiqueta. H2 («igual o mayor») no se
+  convierte en una declaración de equivalencia, porque no hay margen fijado
+  de antemano; H3 se contrasta sobre CPU y memoria, y la GPU queda como
+  descriptiva.
+- **Atípicos y faltantes.** La única exclusión por regla es el calentamiento
+  (§3.7); no se recortan fotogramas lentos ni se excluye una corrida válida
+  por su valor. Una corrida fuera de `Q1-3·IQR`/`Q3+3·IQR` de su condición se
+  **marca** y se informa; el análisis primario la incluye y se repite como
+  sensibilidad predeclarada sin ella y sin su bloque. Faltantes por bloques
+  completos, sin imputación. Sustituye al «valores atípicos según P-08» que
+  P-14 tenía como requisito sin definición.
+- **Potencia.** Con diez bloques, el efecto mínimo detectable es de ~1,0 ds
+  pareadas (~1,45 con el umbral de Holm en una familia de nueve). Regla: el
+  piloto entrega la ds de las diferencias y, antes de la campaña final, se
+  agregan bloques completos si falta potencia para el incremento A→B en la
+  resolución mayor; nunca se baja de diez bloques ni se repiten corridas para
+  mejorar un resultado.
+- **Versión del plan.** No hizo falta tocar el esquema de P-07: la versión del
+  análisis queda identificada por el `artefacto_commit` que la hoja de
+  ejecución ya registra. Una prueba no prevista se informa como exploratoria,
+  no reemplaza a la primaria, y los cambios del plan van al registro de
+  desviaciones de §3.7.4.
+
+**Especificación para P-14.** §3.9.9 fija seis pasos (leer la validez ya
+decidida por el procedimiento; agregados por corrida y ventana; tabla de
+corridas; contrastes con la regla de prueba codificada con sus umbrales como
+constantes; Holm y clasificación de hipótesis; tablas, figuras y trazabilidad
+número → corridas → estadística → versión del script). El script debe emitir
+«no estimable» en lugar de un valor p cuando no se cumplen las
+precondiciones, y ser determinista (semilla, orden de filas, coma decimal).
+
+**Propuestas para el autor (no aplicadas).**
+
+1. **H3 y la GPU.** H3 (`docs/plan.md` §5) nombra CPU y memoria, y las
+   métricas miden también GPU. Se dejó H3 como está y la GPU como descriptiva,
+   con un `% NOTE` en §3.9.5. Ampliarla exige cambiar juntos `plan.md` §5, el
+   enunciado de H3 y la fila de `tab:analysis-families`; el costo es editorial
+   porque la métrica ya se mide.
+2. **Inconsistencia en el criterio de validez (vi) de §3.7.** El criterio
+   exige que en la ventana saturada la tasa de oferta exceda con holgura la de
+   completación. En la configuración A la adquisición comparte el hilo con el
+   resto de la cadena y la oferta es exactamente lo que el bucle alcanza a
+   leer (§3.7.1), de modo que en A esa condición no puede cumplirse y, leída
+   al pie de la letra, invalidaría las treinta corridas saturadas de A. No se
+   tocó porque §3.7 es de P-06. Propuesta: acotar (vi) a las configuraciones
+   con adquisición en proceso aparte y registrar en A la igualdad oferta =
+   completación como propiedad de la arquitectura, no como fallo de validez.
+
+**Citas (cerrado 2026-10-20).** Nueve entradas agregadas a Zotero por DOI o
+BibTeX y exportadas por BBT, más una que se cita solo para descartarla:
+`hoefler2015`, `georges2007` (rigor de medición: repeticiones e intervalos),
+`shapiro1965`, `wilcoxon1945`, `holm1979`, `efron1994` (BCa),
+`benjamini1995` (FDR, descartado), `lakens2013` (`d_z`, diseños intrasujeto) y
+`wasserstein2016` (el valor $p$ no mide la magnitud). Se citan en §3.9.1–§3.9.4
+en el punto exacto que cada una sostiene. La única corrección de metadata fue
+limpiar el título de `wasserstein2016` (traía etiquetas HTML), fijar
+`lakens2013` en «863» (artículo, no página) y `wilcoxon1945` en 80–83.
+
+**Notas.** El plan no agrega ninguna dimensión experimental: los 15 contrastes
+se calculan sobre las 120 corridas de §3.7.
+
+---
 
 **Herencia de P-04 (2026-10-19).** La matriz tiene 12 condiciones y las
-configuraciones están anidadas. §3.6 ya compromete que el análisis se exprese
+configuraciones están anidadas. §3.6 ya comprometía que el análisis se exprese
 como contrastes entre configuraciones consecutivas (A→B, B→C, C→D) y no como
-una colección de comparaciones por pares entre las doce condiciones; P-08 debe
-preespecificar esos contrastes, su intervalo de confianza y la unidad de
-análisis, y declarar por separado la limitación de que la cadena de ROS 2
-solapa fotogramas mientras la línea base no (§3.6.1).
+una colección de comparaciones por pares entre las doce condiciones; §3.9.2 lo
+recoge así y declara por separado la limitación de que la cadena de ROS 2
+solapa fotogramas mientras la línea base no (§3.6.1, resuelta en §3.9.1). Los
+puntos que el pendiente dejaba abiertos —unidad de análisis, diseño pareado,
+prueba y regla de decisión, tamaño del efecto, comparaciones múltiples,
+percentiles, correspondencia con H1–H4 y tratamiento de atípicos y
+faltantes— quedaron resueltos en las decisiones registradas arriba.
 
-**Objetivo.** Fijar un plan de análisis antes de la campaña final, de modo que
-las pruebas no se elijan después de ver los resultados.
+**Criterios de aceptación.** Cumplidos: el plan es falsifiable y está fijado
+antes de la campaña; cada hipótesis tiene una prueba y un criterio
+(`tab:analysis-families`, §3.9.5); la unidad de análisis evita
+pseudorreplicación (§3.9.1); se distingue análisis confirmatorio de
+exploratorio (§3.9.7).
 
-**Decisiones que hay que tomar.**
-
-- **Unidad de análisis.** Los fotogramas de una misma ejecución no son
-  independientes. Definir si se agrega por ejecución (media, mediana, P95) y
-  luego se comparan ejecuciones, o si se usa un modelo mixto. No tratar miles
-  de fotogramas como miles de réplicas independientes.
-- **Diseño.** Las condiciones se miden sobre el mismo equipo y la misma
-  entrada; definir si el diseño es pareado (misma ejecución/orden) o
-  independiente, y cómo se refleja en la prueba.
-- **Pruebas y supuestos.** Prueba de normalidad y homocedasticidad, y la regla
-  de decisión entre una prueba paramétrica y una no paramétrica (por ejemplo,
-  t pareada vs. Wilcoxon, o ANOVA vs. Kruskal-Wallis), o bootstrapping. Dejar
-  la regla escrita, no solo el nombre de la prueba.
-- **Tamaño del efecto e intervalos de confianza.** Además del valor p;
-  reportar la magnitud de la diferencia, que es lo que la pregunta de
-  investigación pide.
-- **Comparaciones múltiples.** Tres configuraciones × tres resoluciones ×
-  varias métricas: definir corrección (Bonferroni, Holm, FDR) o el enfoque
-  jerárquico.
-- **Percentiles.** Cómo se calculan P95 y P99 (por ejecución y luego se
-  agrega, o sobre el conjunto de fotogramas), y el número mínimo de muestras.
-- **Hipótesis.** Mapear H1–H4 a métricas y pruebas concretas. Revisar H3:
-  menciona CPU y memoria, pero las métricas incluyen GPU; decidir si se
-  amplía o se deja como está.
-- **Valores atípicos y datos faltantes.** Regla de exclusión y de reporte.
-
-**Contexto y restricciones.** `docs/plan.md` §13 exige estadísticas
-descriptivas, comparación de latencias, tasa de procesamiento y recursos,
-diferencias porcentuales y evaluación de la tendencia de particionamiento. El
-capítulo 3
-ya define la fórmula de sobrecosto (`eq:overhead`). Las hipótesis son
-predicciones, no resultados esperados.
-
-**Entregable.** §3.9 con el plan completo, las pruebas y la regla de decisión;
-especificación para el script de P-14.
-
-**Criterios de aceptación.** El plan es falsifiable y está fijado antes de la
-campaña; cada hipótesis tiene una prueba y un criterio; la unidad de análisis
-evita pseudorreplicación; se distingue análisis confirmatorio de exploratorio.
-
-**Dependencias.** Se puede escribir ahora; los detalles de la matriz dependen
-de P-05. Desbloquea P-14.
-
-**Notas.** Si durante el análisis surge una prueba no prevista, reportarla
-como exploratoria y no reemplazar el plan principal sin dejarlo registrado.
+**Dependencias.** Desbloquea P-14; la matriz detallada de P-05 quedó cerrada y
+la campaña piloto (P-12) es la que fija `k` y la desviación de las diferencias
+que la regla de potencia de §3.9.8 necesita.
 
 ---
 
@@ -1308,8 +1409,9 @@ adicionales para “mejorar” un resultado.
 
 ### P-14 · Analizar datos y generar tablas y figuras
 
-**Estado actual.** Pendiente. El capítulo 3 §3.9 define el análisis, pero no
-existe el código de análisis ni las figuras de resultados.
+**Estado actual.** Pendiente. El capítulo 3 §3.9 define el análisis y su
+§3.9.9 fija la estructura del script, pero no existe el código de análisis ni
+las figuras de resultados.
 
 **Objetivo.** Limpiar los datos, aplicar el plan de P-08 y producir las tablas
 y figuras que alimentarán el capítulo 4.
@@ -1746,6 +1848,52 @@ el reporte se conserva (ver P-24).
   `Package biblatex Warning: No driver for 'standard'` en el log.
 - Las entradas exportadas incluyen campos `file = {/home/nat/Zotero/...}` con
   rutas locales; no son portables y exponen la estructura del equipo.
+- **RESUELTO (2026-10-20): las tres entradas que existían solo en el archivo
+  ya están en Zotero con su clave correcta.** Antes, `nvidiacorporation2026potencia`,
+  `nvidiacorporation2026tegrastats` y `linuxkernel2026cgroup` (escritas a mano en
+  P-07) desaparecían de `referencias.bib` en cada reexportación de BBT. Se
+  agregaron a la biblioteca y se les fijó la clave; ver más abajo el mecanismo.
+- **Regla: `referencias.bib` es 100 % generado; nunca editarlo a mano.** El
+  auto-export de BBT reescribe el archivo completo cuando cambia la biblioteca
+  (pref `autoExport` para `/home/nat/Memoria/escrito/referencias.bib`), de modo
+  que cualquier entrada escrita a mano se pierde en cuanto se toca Zotero.
+- **Cómo se fija una clave (BBT 9).** La versión instalada guarda la clave en el
+  campo nativo `citationKey` del ítem y **ya no respeta** el truco de escribir
+  `Citation Key: <clave>` en el campo *Extra* (en la fuente: «Pinned citation
+  keys in Extra are no longer supported»). Las dos vías conocidas son: (a)
+  fijarla desde la interfaz (menú de Better BibTeX del ítem), o (b) `PUT`
+  del ítem a la API local con `citationKey` en el cuerpo. La (b) es la que se
+  usó, con `Zotero-Server-ID` y la clave de API local:
+
+  ```bash
+  ITEM=L668GAW4; SRV=AVpq0Z5erDcb; APIKEY=…   # ~/.config/zotero-mcp/config.json
+  curl -s http://127.0.0.1:23119/api/users/0/items/$ITEM \
+    | jq '.data | .citationKey = "nvidiacorporation2026potencia" \
+                | .accessDate = "2026-10-19"' > /tmp/item.json
+  curl -s -X PUT -H 'Content-Type: application/json' \
+    -H "Zotero-Server-ID: $SRV" -H "Zotero-API-Key: $APIKEY" \
+    --data-binary @/tmp/item.json \
+    http://127.0.0.1:23119/api/users/0/items/$ITEM          # 204 = OK
+  ```
+
+  Las credenciales locales están en `~/.config/zotero-mcp/config.json`
+  (`local_api.key`, `local_api.server_id`); `zotero-cli` las usa por su cuenta.
+  El resultado se verifica sin abrir la interfaz:
+  `curl -s http://127.0.0.1:23119/better-bibtex/json-rpc -X POST -H 'Content-Type:
+  application/json' -d '{"jsonrpc":"2.0","id":1,"method":"item.citationkey",
+  "params":[["ITEMKEY"]]}'`.
+- **La clave automática de un autor corporativo no sirve.** Con el formato
+  `auth.lower + year` (`nvidiacorporation2026`, `thelinuxkernelorganization2026`)
+  se pierden el título y el sujeto de la referencia, y dos documentos del mismo
+  autor y año colisionan en `…2026a`. Por eso estas entradas necesitan clave
+  explícita. Ojo además con los ítems que traen `zotero-item-NNN` en
+  `citationKey`: es el marcador que pone Zotero y rompe cualquier cita.
+- **Basura pendiente en la papelera de Zotero.** Quedaron tres duplicados de
+  estas mismas referencias con clave `zotero-item-120/121/122`
+  (`BVF8MXVV`, `GL2K737J`, `7CFA7WPH`) y dos duplicados de `rep2000` y
+  `rosjazzyrclpy` (`JNQSQW49`, `R9XKYYBL`). No afectan la exportación mientras
+  sigan en la papelera, pero hay que vaciarla para que no se restauren por
+  error.
 
 **Objetivo.** Dejar una bibliografía limpia, completa, consistente con el
 estilo IEEE y sin artefactos de depuración.
@@ -1768,6 +1916,8 @@ estilo IEEE y sin artefactos de depuración.
 - Eliminar o neutralizar los campos `file` con rutas locales antes de publicar
   el repositorio.
 - Verificar que no queden entradas duplicadas entre Zotero y `referencias.bib`.
+- Vaciar la papelera de Zotero (ver los duplicados con `zotero-item-NNN` en
+  "Estado actual").
 - Limpiar los artefactos `main.bbl-SAVE-ERROR` y `main.bcf-SAVE-ERROR` si el
   build ya es estable.
 - Revisar los overfull boxes de la bibliografía: el log reporta uno de
