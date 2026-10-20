@@ -25,6 +25,16 @@
 \usepackage[backend=biber, style=ieee]{biblatex}
 \addbibresource{referencias.bib}
 
+% Encabezado de la bibliografía con entrada en el índice general y en el
+% outline del PDF.
+\makeatletter
+\defbibheading{bibliografia}[\bibname]{%
+  \clearpage
+  \phantomsection
+  \@schapter{#1}%
+  \addcontentsline{toc}{chapter}{#1}}
+\makeatother
+
 % ---- Modo de revisión de la bibliografía (solo para depuración) ----
 % \revisarbibtrue  : imprime TODAS las entradas de referencias.bib (\nocite{*})
 %                    y marca en la lista cuáles están citadas (✓) y cuáles no
@@ -132,7 +142,7 @@
 \include{sections/capitulo-3}
 
 \include{sections/conclusiones}
-\printbibliography
+\printbibliography[heading=bibliografia]
 % Resumen del modo de revisión (no imprime nada si \revisarbibfalse).
 \revisionbibliografia
 \include{sections/anexos}
