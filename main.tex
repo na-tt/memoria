@@ -38,6 +38,10 @@
 \usepackage{float} % debe cargarse antes de hyperref
 \usepackage{fancyhdr} % encabezados y pies personalizados
 \usepackage[hidelinks]{hyperref}
+% 'xurl' permite partir las URL de la bibliografía en cualquier carácter. Sin
+% él, las direcciones largas de la documentación oficial no encuentran punto de
+% corte y desbordan el margen (y su anotación sale de la página en el PDF).
+\usepackage{xurl}
 \usepackage{bookmark} % marcadores/outline del PDF; despues de hyperref
 
 \usepackage[toc]{glossaries}

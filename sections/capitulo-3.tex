@@ -1251,7 +1251,9 @@ consumo medidos \cite{tang2026}. Cada corrida procede así:
         sin refrigeración externa ni velocidad modificada
         (\Cref{sec:platform}), y no se acelera artificialmente; si el umbral
         tarda más en alcanzarse, se espera igualmente y la espera se anota
-        en el registro de desviaciones.
+        en el registro de desviaciones. El último minuto de la espera registra
+        la potencia en reposo, que es la línea base de la potencia de la
+        corrida siguiente (\Cref{sec:power}).
   \item \textbf{Repetir y ordenar.} Cada condición se ejecuta diez veces,
         una por bloque. Cada bloque contiene una corrida de cada una de las
         doce condiciones en orden aleatorio, permutado con una semilla que se
@@ -1326,7 +1328,8 @@ quedan vacíos o en cero.
       frontera; fotogramas en vuelo, máximo y promedio \\
     Estado & modo de energía y gobernadores verificados; temperatura del SoC
       al inicio y al cierre de cada ventana; temperatura ambiente;
-      frecuencias efectivas medias de CPU, GPU y memoria \\
+      frecuencias efectivas medias de CPU, GPU y memoria; potencia del módulo
+      en reposo, que es la línea base de potencia de la corrida \\
     Validez & fotogramas comparados en la verificación de equivalencia y
       discrepancias; variación de la temperatura dentro de cada ventana;
       integridad del monitoreo; resultado (válida, repetida o descartada) \\
@@ -1347,7 +1350,55 @@ presenta resultados cuya desviación no esté declarada.
 \section{Medición de las métricas de rendimiento}
 \label{sec:metric-measurement}
 
+Esta sección fija, para cada métrica definida en la \Cref{sec:metrics}, con
+qué instrumento se obtiene, en qué punto exacto se toma, a qué intervalo se
+muestrea y cómo se agrega dentro de una ventana. La
+\Cref{tab:metric-instrumentation} resume la correspondencia y los apartados
+siguientes justifican cada elección. La instrumentación es la misma en las
+cuatro configuraciones, de modo que lo único que cambia entre ellas es la
+arquitectura de la cadena y no la forma de medirla.
+
+\begin{table}[htbp]
+  \centering
+  \caption[Instrumento, intervalo y agregación de cada métrica]{Instrumento,
+  intervalo y agregación de cada métrica. Los mismos instrumentos y los mismos
+  intervalos se aplican en A, B, C y D; los detalles de cada fila se fijan en
+  los apartados siguientes.}
+  \label{tab:metric-instrumentation}
+  \begin{tabular}{@{}L{0.13\linewidth}L{0.35\linewidth}L{0.11\linewidth}L{0.28\linewidth}@{}}
+    \toprule
+    \textbf{Métrica} & \textbf{Instrumento y señal} & \textbf{Intervalo} &
+    \textbf{Agregación en la ventana} \\
+    \midrule
+    Latencia de extremo a extremo & marcas del reloj monótono en la primera y
+      la última operación de la \Cref{tab:operations} & por fotograma &
+      media, mediana, desviación estándar, mínimo, máximo, P95 y P99 \\
+    Tasa de procesamiento & las mismas marcas: fotogramas completados y
+      duración efectiva de la ventana & por ventana & un valor por ventana y
+      por corrida (\Cref{eq:fps}) \\
+    CPU & \texttt{tegrastats}: porcentaje y frecuencia por núcleo;
+      \texttt{cgroup}: tiempo de CPU de la cadena & 500~ms; por ventana &
+      media ponderada por intervalo, máximo del sistema y porcentaje
+      atribuido a la cadena \\
+    Memoria & \texttt{tegrastats}: RAM en uso y total; \texttt{cgroup}:
+      memoria anónima y compartida de la cadena & 500~ms; 1~s &
+      media y máximo del sistema; media y máximo de la cadena \\
+    GPU & \texttt{tegrastats}: \texttt{GR3D\_FREQ};
+      \texttt{devfreq}: frecuencia del dominio & 500~ms; 1~s & media y máximo
+      de la activación; frecuencia media \\
+    Potencia & \texttt{tegrastats}: \texttt{VDD\_IN},
+      \texttt{VDD\_CPU\_GPU\_CV} y \texttt{VDD\_SOC} & 500~ms & media,
+      máximo, energía por fotograma y fotogramas por segundo por vatio \\
+    Temperatura y frecuencia & \texttt{tegrastats}: zonas \texttt{cpu},
+      \texttt{gpu}, \texttt{soc0} a \texttt{soc2} y \texttt{tj};
+      \texttt{cpufreq} y \texttt{devfreq} & 500~ms; 1~s & media, máximo y
+      variación dentro de la ventana \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsection{Latencia de extremo a extremo}
+\label{sec:latency}
 
 La latencia se mide por fotograma como el tiempo transcurrido entre la
 entrada del fotograma a la primera etapa de la cadena y la disponibilidad de
@@ -1359,9 +1410,90 @@ arquitecturas. Esto refleja la perspectiva de extremo a extremo de las
 evaluaciones de latencia de ROS~2 a nivel de aplicación \cite{betz2023a} y
 la metodología de marcas de tiempo en fronteras utilizada para el análisis
 de comunicación resuelto por capa \cite{kamiya2025}.
-\todo{SPECIFY: timestamping mechanism (e.g., monotonic clocks) and, for
-the ROS 2 configurations, how the timestamps of the first and final nodes
-are related on the same host.} Estadísticas informadas: media, mediana,
+
+Las marcas se toman con \texttt{time.perf\_counter\_ns()}. En Linux esa
+función es una lectura del reloj \texttt{CLOCK\_MONOTONIC}, cuya resolución es
+de un nanosegundo.
+Se usa un reloj monótono y no el reloj del sistema porque este último es
+ajustable: una corrección por protocolo de tiempo de red durante una corrida
+desplazaría las marcas y produciría latencias negativas o infladas. El reloj
+monótono no se ajusta, cuenta desde el arranque del equipo y tiene el mismo
+origen en todos los procesos del anfitrión, de modo que la marca del primer
+extremo y la del último son comparables aunque provengan de procesos
+distintos, sin sincronización ni protocolo entre nodos. No se usa el reloj de
+ROS~2: deriva del reloj del sistema, puede ser sustituido por el tópico
+\texttt{/clock} y devuelve un mensaje, de modo que su origen y su costo
+serían distintos de los de la implementación monolítica, que no tiene reloj
+de ROS. Como el reloj monótono no es tiempo de calendario, cada corrida
+registra el desfase entre \texttt{CLOCK\_MONOTONIC} y
+\texttt{CLOCK\_REALTIME} al inicio y al cierre; ese desfase es lo que permite
+relacionar las marcas con la fecha de la hoja de ejecución y con el registro
+del monitoreo.
+
+Cada operación registra dos marcas por fotograma: la de recepción, en la
+primera instrucción que ejecuta al recibir el fotograma, y la de despacho,
+inmediatamente antes de publicar el resultado. La diferencia entre ambas es
+el tiempo de cómputo de la operación; la diferencia entre el despacho de una
+operación y la recepción de la siguiente es el costo de la frontera, e
+incluye la serialización, el transporte del middleware y el despertar del
+suscriptor. La marca de despacho precede a la publicación y no sigue al
+retorno del callback porque la serialización pertenece a la frontera y no al
+cómputo del nodo: una instrumentación que sellara el callback completo
+atribuiría al nodo un tiempo que es del transporte. La operación~7 no publica,
+de modo que su marca de despacho es el instante en que el resultado queda
+disponible y cierra la cadena.
+
+La latencia de extremo a extremo se calcula, entonces, con la marca de
+recepción de la operación~1 y la de despacho de la última operación, y
+comprende la obtención del fotograma. Se informa además, como descomposición,
+la latencia que excluye la adquisición, calculada con la marca de despacho de
+la operación~1. Las dos cantidades no son dos métricas: la primera es la que
+define este apartado y con la que se calcula el sobrecosto de la
+\Cref{eq:overhead}, y la segunda permite separar el costo de las fronteras
+del costo de la adquisición, que en las configuraciones de ROS~2 también
+depende de la arquitectura, porque el nodo de adquisición compite por la CPU
+con los demás procesos y decodifica en lazo abierto
+(\Cref{sec:driving}).
+
+El índice de fotograma viaja en la cabecera de todos los mensajes y ninguna
+operación lo modifica: \texttt{header.frame\_id}, con un formato fijo de una
+letra y seis dígitos. La marca no viaja. Cada operación escribe en su propio
+registro las dos marcas de cada fotograma que procesa, y la consolidación une
+las filas de procesos distintos por índice de fotograma dentro de la misma
+ventana, lo que basta porque el reloj monótono tiene el mismo origen en todos
+los procesos del anfitrión y la ventana del fotograma acompaña a la fila.
+Transportar la marca no agregaría información: duplicaría en el mensaje un
+dato que la fila de su productor ya tiene y obligaría a ocupar
+\texttt{header.stamp} con un valor que no es tiempo de ROS.
+
+Se usa el campo de la cabecera estándar y no un tipo de mensaje propio porque
+un tipo nuevo cambiaría los tipos y los tamaños de carga útil de la
+\Cref{tab:operations} y agregaría una capa de serialización que ninguna de las
+dos arquitecturas tiene: el instrumento no debe modificar el objeto que mide,
+y lo que se compara es el costo de las fronteras. La desviación se declara:
+\texttt{frame\_id} no designa un marco de \texttt{tf2}, porque la cadena no
+publica transformaciones ni tiene consumidores que lo interpreten de ese modo;
+\texttt{header.stamp} queda sin uso como portador de tiempo, así que no hay un
+segundo campo con un significado falso.
+
+La cabecera de ROS~2 no incluye número de secuencia, de modo que el índice debe
+viajar de forma explícita: sin él, un suscriptor que recibe el fotograma 42
+después del 39 no puede distinguir un descarte de un salto de orden, y la
+comparación por índice de la \Cref{sec:equivalence} se apoya en el mismo dato.
+La latencia de una frontera se obtiene, entonces, restando a la marca de
+recepción del consumidor la marca de despacho del productor para el mismo
+índice, una vez consolidados los registros; la marca de adquisición de la
+operación~1 llega al analizador por esa misma vía y no por el mensaje.
+
+El costo de la instrumentación se midió en el equipo experimental: una
+lectura del reloj tarda entre 0,18 y 0,23~µs y una operación medida ---dos
+marcas y cinco escrituras en el búfer en memoria--- 1,1~µs. Con siete
+operaciones por fotograma son 7,6~µs por fotograma, esto es, 0,08~\% del
+tiempo de un fotograma de 10~ms. Las marcas se acumulan en memoria y se
+escriben en disco al cerrar cada ventana, de modo que dentro de la ventana no
+hay escrituras ni esperas de entrada y salida.
+
+Estadísticas informadas: media, mediana,
 desviación estándar, mínimo, máximo, P95 y P99 cuando haya muestras
 suficientes, siguiendo la práctica de informe de percentiles de la literatura
 de evaluación comparativa de rendimiento de ROS~2 \cite{kronauer2021,
@@ -1380,37 +1512,235 @@ intervalo de medición en estado estacionario, tras eliminar el calentamiento:
 
 Los fotogramas procesados que entran en el numerador son los que completaron
 el recorrido de la cadena y produjeron su salida; los descartes y su efecto
-sobre los denominadores se fijan en la \Cref{sec:discards}.
+sobre los denominadores se fijan en la \Cref{sec:discards}. La tasa no
+requiere instrumentación adicional: se calcula con las mismas marcas de la
+\Cref{sec:latency}, contando los fotogramas cuya marca de despacho
+de la última operación cae dentro de la ventana y dividiendo por el tiempo
+transcurrido entre la marca de recepción del primero de ellos y la de
+despacho del último.
 
 \subsection{Utilización de CPU}
 
-La utilización promedio y máxima de la CPU se mide durante el intervalo de
-medición utilizando herramientas de monitoreo del sistema.
-\todo{SPECIFY: tool and sampling interval (e.g., \texttt{tegrastats} or
-equivalent).}
+La utilización de CPU se toma del campo \texttt{CPU} de \texttt{tegrastats},
+que entrega un porcentaje por núcleo referido a la frecuencia de ese instante
+y la frecuencia de cada núcleo, con un intervalo de muestreo de 500~ms. La
+herramienta calcula ese porcentaje a partir del tiempo ocioso que informa el
+núcleo de Linux en \texttt{/proc/stat} \cite{nvidiacorporation2026tegrastats},
+de modo que es una utilización del intervalo y no una lectura instantánea.
+La utilización del sistema en una muestra es la media de los seis
+porcentajes; se informan la media ponderada por el intervalo entre muestras y
+el máximo de esa cantidad, y aparte el núcleo más cargado.
+
+Esa señal describe el sistema completo, incluida la herramienta de monitoreo,
+y no permite atribuir consumo a la cadena. Por eso el arnés lanza la cadena de
+cada corrida dentro de un ámbito de control del núcleo (cgroup v2)
+\cite{linuxkernel2026cgroup} propio y se registra el contador acumulado de
+tiempo de CPU de ese ámbito: la diferencia
+entre el cierre y el inicio de la ventana, dividida por su duración, es el
+tiempo de CPU que la configuración consumió, sin error de muestreo y sin
+incluir a nadie más. El ámbito abarca todos los procesos de la cadena, con sus
+hilos de middleware, que son parte del costo de la arquitectura y no un
+observador externo; la implementación monolítica corre en un ámbito
+equivalente, de modo que las dos se miden igual. Se informa como porcentaje de
+un núcleo y como porcentaje del módulo, que tiene seis. Es la cantidad con la
+que se contrasta la hipótesis H3, porque el porcentaje de \texttt{tegrastats}
+incluye el monitoreo y el resto del sistema. El contador no es una herramienta
+de monitoreo adicional: es un contador del núcleo que se lee dos veces por
+ventana, y el arnés ya tiene que lanzar la cadena, de modo que no agrega ni
+procesos ni dependencias al entorno fijado en la
+\Cref{sec:software-environment}.
 
 \subsection{Utilización de memoria}
 
-La utilización de la RAM del sistema se mide durante el intervalo de
-medición; el uso de memoria de GPU se registra si se dispone de una medición
-confiable.
-\todo{SPECIFY: tool.}
+La memoria del sistema en uso y su total se toman del campo \texttt{RAM} de
+\texttt{tegrastats}, con el mismo intervalo y la misma herramienta. En la Orin
+Nano la memoria es unificada: la CPU y el GPU comparten la misma LPDDR5, de
+modo que no existe una memoria de GPU separable y no se informa como cifra
+aparte. La \Cref{sec:metrics} condicionaba esa medición a que existiera una
+medición confiable; la plataforma no expone la memoria del GPU separada de la
+del sistema, de modo que la condición no se cumple y la memoria se informa
+como una sola cantidad.
+
+Como en el caso de la CPU, la cifra del sistema incluye todo lo que corre en
+el equipo. Se registra además, del mismo ámbito de control, la memoria anónima
+y la compartida ---las dos categorías en que el núcleo contabiliza la huella
+residente de la cadena, y entre las que quedan los segmentos que el middleware
+comparte entre procesos--- una vez por segundo, y se informan su media y su
+máximo, que es la huella atribuible a la configuración. La caché de archivos
+del sistema no entra en la cifra: describe el uso de disco y no el consumo de
+la cadena. El tamaño del bloque libre más grande que informa
+\texttt{tegrastats} y el máximo del ámbito completo se registran, pero no se
+analizan: el primero describe fragmentación del asignador y el segundo está
+dominado por la caché de archivos.
 
 \subsection{Utilización de GPU}
 
-La utilización de GPU se registra para determinar si el sobrecosto
-arquitectónico cambia la utilización del recurso de cómputo principal.
-\todo{SPECIFY: tool.}
+La utilización de GPU se toma del campo \texttt{GR3D\_FREQ} de
+\texttt{tegrastats}, que informa la proporción del tiempo de activación del
+GPU en el intervalo, y se acompaña de la frecuencia del dominio de cómputo,
+leída de su entrada de \texttt{devfreq}. Es la señal que la plataforma expone:
+en Jetson no existe \texttt{nvidia-smi} y el controlador no publica una
+ocupación de las unidades de ejecución. La cifra se informa, por lo tanto,
+como tiempo de activación del GPU y no como fracción de su capacidad de
+cómputo, y basta para lo que la \Cref{sec:metrics} le pide: determinar si el
+sobrecosto arquitectónico cambia la utilización del recurso de cómputo
+principal. Se informan la media y el máximo de la activación y la frecuencia
+media, que con el gobernador fijado en \texttt{performance} y el modo de
+energía de la \Cref{sec:platform} tiene un tope de 1\,020~MHz
+\cite{nvidiacorporation2026potencia}.
 
-\subsection{Consumo de energía (opcional)}
+\subsection{Consumo de energía}
+\label{sec:power}
 
-Si se dispone de una medición confiable: potencia promedio, potencia
-máxima, energía por fotograma procesado y rendimiento por vatio, siguiendo
-la práctica de métricas de potencia de los estudios de caracterización de la
-Orin Nano \cite{tang2026}.
-\todo{SPECIFY: measurement method, or state that power measurement was
-excluded. Power measurement is an optional extension and must not
-threaten completion of the thesis.}
+El consumo se mide. Las cuatro configuraciones ejecutan el mismo trabajo sobre
+el mismo equipo, de modo que la potencia es la única forma de ver si el
+particionamiento cambia el costo energético, y la plataforma ya expone la
+medida sin agregar instrumentación: el módulo integra un monitor de potencia
+INA3221 de tres canales cuyos raíles \texttt{VDD\_IN}, \texttt{VDD\_CPU\_GPU\_CV}
+y \texttt{VDD\_SOC} publica \texttt{tegrastats}
+\cite{nvidiacorporation2026potencia, nvidiacorporation2026tegrastats}. Se
+informan potencia media, potencia máxima, energía por fotograma procesado y
+rendimiento por vatio, siguiendo la práctica de métricas de potencia de los
+estudios de caracterización de la Orin Nano \cite{tang2026}:
+
+\begin{align}
+  E_{\text{fotograma}} &= \frac{\bar{P}\,\Delta t}{N}
+    \label{eq:energia-fotograma},\\
+  \text{FPS/W} &= \frac{\text{FPS}}{\bar{P}/1000}
+    \label{eq:fps-watio},
+\end{align}
+
+\noindent donde $\bar{P}$ es la potencia media de la ventana en milivatios,
+$\Delta t$ su duración efectiva y $N$ los fotogramas completados.
+
+Hay tres precisiones que condicionan cómo se interpreta la cifra.
+\texttt{VDD\_IN} es la potencia de entrada del módulo, no la del equipo: no
+incluye la placa portadora, el ventilador, el SSD ni las pérdidas de la fuente
+externa. La medida proviene de un monitor de tres canales con su propia
+resolución, de modo que su exactitud absoluta es la del instrumento; lo que
+hace válida la comparación entre configuraciones no es la exactitud de la
+cifra sino que el instrumento, el intervalo y el estado del equipo son los
+mismos en las cuatro. Y los dos raíles restantes no reemplazan a
+\texttt{VDD\_IN}: se informan porque permiten ver si una diferencia de
+potencia se concentra en el dominio de cómputo o en el del SoC.
+
+La potencia del módulo en reposo no es cero y se desplaza entre bloques con la
+temperatura ambiente y el ventilador; por eso cada corrida tiene una línea
+base. Se toma del último minuto de la espera de enfriamiento de la
+\Cref{sec:run-sequence}, que es el estado desde el que parte la corrida
+siguiente, y no agrega tiempo a la campaña. La potencia atribuible a la carga
+es la diferencia entre la ventana y esa línea base, y la hoja de ejecución
+registra las dos. La referencia no es un adorno: medida en el equipo con 60~s
+de muestreo, la potencia de entrada se desplazó 0,34~W en torno a su media y
+0,41~W entre el comienzo y el final de esos 60~s, magnitudes comparables a la
+diferencia que se busca medir.
+
+La potencia no interviene en las hipótesis H1 a H4 enunciadas en la
+\Cref{sec:analysis}: se informa como resultado descriptivo, y si en los
+experimentos piloto las lecturas resultan inestables se informa esa
+inestabilidad y la métrica no se usa para sostener ninguna conclusión.
+
+\subsection{Muestreo, perturbación e integridad del monitoreo}
+\label{sec:monitoring}
+
+El monitoreo es un único proceso \texttt{tegrastats} que el arnés arranca
+antes del calentamiento y detiene al cerrar el registro, con el intervalo de
+muestreo de 500~ms. El arnés lee su salida y sella cada línea con el mismo
+reloj monótono de las marcas, en el instante en que la lee. Ese sello, y no la
+hora de pared que encabeza cada línea ---que tiene resolución de un
+segundo---, es lo que pone las muestras en el mismo dominio de tiempo que los
+fotogramas y permite asignarlas a una ventana sin depender de la
+sincronización entre el reloj del sistema y el de la medición.
+
+El intervalo se fija en 500~ms por un compromiso entre resolución y
+perturbación, medido en el equipo (\Cref{tab:sampling-interval}). A 100~ms la
+herramienta no sostiene la cadencia que se le pide y triplica su costo; a
+1~s entrega 60 muestras en la ventana regulada, pocas para estimar un máximo y
+para sostener la verificación térmica. Con 500~ms entrega 120 muestras en la
+ventana regulada y 240 en la saturada, sostiene la cadencia con una
+desviación del 2~\% y consume 0,37~\% de un núcleo.
+
+\begin{table}[htbp]
+  \centering
+  \caption[Periodo real y costo de \texttt{tegrastats}]{Periodo real y costo
+  de \texttt{tegrastats} según el intervalo pedido, medidos en el equipo
+  experimental con una ventana de 8~s. El periodo real es el intervalo más el
+  tiempo de trabajo de la herramienta, de modo que la cadencia efectiva es
+  menor que la nominal.}
+  \label{tab:sampling-interval}
+  \begin{tabular}{@{}rrrr@{}}
+    \toprule
+    \textbf{Intervalo (ms)} & \textbf{Periodo mediano (ms)} &
+    \textbf{Periodo máximo (ms)} & \textbf{Costo (\% de un núcleo)} \\
+    \midrule
+    100 & 109 & 120 & 1,25 \\
+    200 & 209 & 228 & 0,75 \\
+    500 & 510 & 515 & 0,37 \\
+    1000 & 1008 & 1011 & 0,12 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Dos campos que la guía de la herramienta documenta no se reportan en esta
+versión y se obtienen por otra vía. La frecuencia del controlador de memoria
+no aparece en la salida, de modo que se lee de la entrada de
+\texttt{devfreq} del administrador de ancho de banda del BPMP, que es el
+dominio cuya frecuencia escala el controlador de memoria. La memoria de intercambio no
+aparece porque el equipo no tiene área de intercambio activa; no se configura
+una, porque introduciría una variable nueva en el comportamiento de memoria.
+La herramienta tampoco informa la media ni el máximo de sus propios raíles
+referidos a la ventana: los acumula desde que se inicia, de modo que la
+agregación se calcula siempre sobre el valor instantáneo de cada muestra y
+nunca sobre los valores que la herramienta ya acumuló.
+
+El criterio de integridad de la \Cref{sec:run-sequence} se evalúa así: con
+$N_{\text{esp}} = \Delta t / \tilde{\Delta t}$, donde $\tilde{\Delta t}$ es
+la mediana del intervalo entre muestras, la ventana es válida si
+$N_{\text{obs}} \geq 0{,}97\,N_{\text{esp}}$ y si ninguna separación entre
+muestras consecutivas supera tres veces esa mediana. La hoja de ejecución
+registra $N_{\text{esp}}$, $N_{\text{obs}}$, la mediana y la separación
+máxima, de modo que la comprobación sea auditable y no dependa del juicio de
+quien opera.
+
+La perturbación se controla en dos frentes. El primero es la escritura: las
+marcas y las muestras se acumulan en memoria y se escriben en disco al cerrar
+cada ventana, de modo que dentro de la ventana no hay entrada y salida ni
+esperas por bloqueo. El segundo es la separación de procesos: el arnés que
+monitorea es siempre un proceso distinto del que ejecuta la cadena, incluso en
+la configuración A, porque si la implementación monolítica corriera dentro del
+arnés cargaría con el costo del monitoreo y la comparación dejaría de ser
+entre arquitecturas. Ese costo es el mismo en las cuatro configuraciones y se
+informa, de modo que quien lea las cifras pueda descontarlo; el porcentaje de
+CPU del sistema lo incluye, y el tiempo de CPU atribuido a la cadena
+(\Cref{sec:metric-measurement}) no.
+
+\subsection{Formato del registro}
+\label{sec:data-format}
+
+Cada corrida produce tres piezas con nombres estables: la hoja de ejecución de
+la \Cref{tab:run-manifest}, el registro crudo de \texttt{tegrastats} y una
+base de datos local con las marcas por fotograma y las muestras del
+monitoreo. Las marcas se registran con una fila por fotograma y por operación,
+con la ventana, el índice de fotograma, la operación, las dos marcas y la
+cantidad de fotogramas omitidos. Esa última columna es la diferencia entre el
+índice recibido y el siguiente esperado, y es lo que cuantifica los descartes
+por frontera de la \Cref{sec:discards}: un indicador binario no puede expresar
+cuántos fotogramas perdió una frontera durante una espera. Las marcas internas
+sirven para contar descartes, fotogramas en vuelo y auditoría de equivalencia,
+no para comparar arquitecturas.
+
+Se usa una base de datos por corrida y no un archivo de texto por ventana
+porque el registro por fotograma tiene decenas de miles de filas por corrida,
+se consulta por fotograma y por operación y se agrega después por condición y
+por bloque; una base tipada evita el análisis sintáctico y las ambigüedades de
+formato de los archivos delimitados. El registro crudo de \texttt{tegrastats}
+se conserva además de las muestras ya interpretadas, porque es el documento
+primario del monitoreo y permite rehacer el análisis si el intérprete se
+equivoca. Las bases de las corridas se consolidan en una sola base de campaña
+mediante un paso reproducible, de modo que esa base es regenerable y no se
+versiona. Los nombres de archivo derivan del identificador de la corrida, de
+modo que los registros del capítulo de resultados se puedan rastrear hasta su
+origen.
 
 \section{Análisis de datos}
 \label{sec:analysis}

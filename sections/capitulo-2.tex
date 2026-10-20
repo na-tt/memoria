@@ -504,17 +504,18 @@ se dispone de una medición confiable.
 La utilización de GPU registra si el sobrecosto arquitectónico cambia la
 utilización del recurso de cómputo principal para la inferencia.
 
-\subsection{Consumo de energía (opcional)}
+\subsection{Consumo de energía}
 
 Si es posible una medición confiable y reproducible con el hardware
 disponible, se registrarán las siguientes cantidades: potencia promedio,
 potencia máxima, energía por fotograma procesado y rendimiento por vatio,
 reflejando las métricas relacionadas con potencia utilizadas en los estudios
-de caracterización de la Orin Nano \cite{tang2026}. La medición de potencia
-se trata como una extensión opcional y no como un requisito.
-% TODO: cite Jetson power-measurement methods (e.g., on-board power rails
-% / tegrastats) if power measurement is included; official documentation
-% is not currently in the library.
+de caracterización de la Orin Nano \cite{tang2026}. La potencia no es un
+requisito de la comparación sino una métrica secundaria; el módulo
+expone los raíles de potencia y la herramienta de monitoreo fijada los
+informa, de modo que la medición se incluye y su método se fija en la
+\Cref{sec:power} \cite{nvidiacorporation2026potencia,
+nvidiacorporation2026tegrastats}.
 
 \section{Trabajos relacionados}
 \label{sec:related-work}

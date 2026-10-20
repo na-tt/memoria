@@ -28,6 +28,11 @@ the thesis PDF and must never be included in the build:
   the workload of the detection chain.
 - `docs/reporte-comm-ros2.md` — internal report on how a message travels between
   two ROS 2 nodes; backs figure `fig:ros2-ruta-mensaje`.
+- `docs/plantilla-corrida.md` — run sheet, per-frame record columns and
+  deviation log; the specification that P-11 must materialize.
+- `docs/instrumentacion.md` — instrumentation spec behind §3.8: clock and mark
+  pattern, `tegrastats`/`sysfs`/cgroup sampling, SQLite schema, and the checks
+  to run on the device during the pilot.
 - `docs/scripts/zipfetch.py` — extracts individual members of a remote
   (possibly split) `.zip` over HTTP `Range`. Used to pull single BDD100K clips
   from the ~1.97 TB video package without downloading it; the exact command

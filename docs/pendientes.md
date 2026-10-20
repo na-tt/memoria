@@ -61,8 +61,8 @@ Convenciones del documento:
 | `sections/resumen.tex` | Incompleto | Dos `\todo` (resultados y conclusión); el del modelo quedó cerrado en P-03. |
 | `sections/abstract.tex` | Incompleto | Los mismos dos `\todo`, en inglés. |
 | `sections/capitulo-1.tex` | Borrador avanzado | Dos `% TODO` de cita (privacidad; adopción de rclpy). |
-| `sections/capitulo-2.tex` | Borrador avanzado | Cuatro `% TODO` sustantivos de cita/atribución; sin `\todo` visibles desde P-03. Ocho figuras. |
-| `sections/capitulo-3.tex` | Borrador avanzado | 6 `\todo` visibles: cinco de P-07 (§3.8) y uno de P-08 (§3.9); §3.1–§3.7 cerradas; sin resultados. |
+| `sections/capitulo-2.tex` | Borrador avanzado | Tres `% TODO` de cita/atribución (el de potencia se cerró en P-07); sin `\todo` visibles desde P-03. Ocho figuras. |
+| `sections/capitulo-3.tex` | Borrador avanzado | 1 `\todo` visible, de P-08 (§3.9); §3.1–§3.8 cerradas desde P-07; sin resultados. |
 | `sections/conclusiones.tex` | Vacío | Solo `\chapter*{Conclusiones}`; no está numerado ni tiene secciones. |
 | Capítulos 4, 5 y 6 | **No existen** | `docs/plan.md` los exige y el capítulo 1 los anuncia. |
 | `sections/anexos.tex` | Relleno | `\appendix` + `\chapter{Apendice A}`. |
@@ -87,7 +87,7 @@ referencian desde el texto.
 | P-04 | Definir las configuraciones de particionamiento | **HECHO** | P-03 | Alta |
 | P-05 | Fijar la matriz experimental y las resoluciones | **HECHO** | P-03, P-04 | Alta |
 | P-06 | Diseñar el procedimiento de benchmark | **HECHO** | P-03, P-05 | Alta |
-| P-07 | Definir la instrumentación y la medición de métricas | PARCIAL | P-02 | Alta |
+| P-07 | Definir la instrumentación y la medición de métricas | **HECHO** | P-02 | Alta |
 | P-08 | Preespecificar el análisis estadístico | AHORA | P-05 (para detalles) | Alta |
 | P-09 | Implementar la cadena monolítica | AHORA | P-03, P-05 | Alta |
 | P-10 | Implementar la cadena ROS 2 | BLOQUEADO | P-04, P-09 | Alta |
@@ -455,9 +455,10 @@ ajuste se decide en los pilotos, se registra en `docs/plan.md` y en este
 archivo, y se informa como desviación. §10 pasó a 4×3 = 12 condiciones.
 `docs/future.md` §10 quedó anotado como parcialmente cubierto.
 
-**Pendiente heredado.** El mecanismo de marcas de tiempo (reloj monótono,
-identificador de fotograma entre procesos) sigue en P-07; §3.5.3 fija el
-criterio de comparación, no el mecanismo.
+**Pendiente heredado.** El mecanismo de marcas de tiempo lo cerró P-07: el
+índice viaja en `header.frame_id` y las marcas se consolidan por índice
+(§3.8.1, `docs/instrumentacion.md` §2). §3.5.3 fija el criterio de
+comparación, no el mecanismo, de modo que ambos son compatibles.
 
 **Estado previo (contexto histórico).** §3.5 y §3.6 dejaban como `\todo` el
 mapeo exacto de etapas a nodos, el tipo de ejecutor y la verificación de
@@ -788,8 +789,9 @@ de referencia cubre la totalidad del clip (antes «un tramo fijo») y remite la
 tasa de prueba a `sec:driving`; §3.6 remite duración y repeticiones a §3.7;
 §3.8.2 precisa qué cuenta como fotograma procesado; §3.9 agrega la tasa
 regulada y la hoja de ejecución a la lista de reproducibilidad; se actualizó el
-comentario de cabecera de `capitulo-3.tex`. Quedan 6 `\todo` visibles en el
-capítulo: cinco de P-07 (§3.8) y uno de P-08 (§3.9).
+comentario de cabecera de `capitulo-3.tex`. Quedaban 6 `\todo` visibles en el
+capítulo: los cinco de P-07 (§3.8), que ese pendiente cerró, y uno de P-08
+(§3.9), que sigue abierto.
 
 **Propuesta para el autor (no aplicada).** La decisión de medir con dos
 ventanas no figura en `docs/plan.md` §11, que describe una sola ejecución por
@@ -818,85 +820,177 @@ procedimiento ni se reducen las repeticiones.
 
 ### P-07 · Definir la instrumentación y la medición de métricas
 
-**Estado actual.** §3.8 tiene `\todo{SPECIFY}` para el mecanismo de marcas de
-tiempo (`sections/capitulo-3.tex:276-278`), la herramienta de CPU (`299`), la
-de memoria (`307`), la de GPU (`313`) y el método de potencia (`321`). El
-capítulo 2 define las métricas, pero no cómo se obtienen. El capítulo 3 afirma
-que las marcas se toman en puntos equivalentes entre configuraciones.
+**Estado: completado (2026-10-19).** §3.8 quedó reescrita y sin `\todo`: fija
+reloj, puntos de marca, transporte del índice en la cabecera, herramienta,
+intervalo y agregación de cada métrica, la decisión sobre potencia y su línea
+base, el criterio de integridad del monitoreo y el formato del registro.
+La especificación concreta para P-11 —esquema de la base, patrón de código,
+rutas de `sysfs`, verificaciones del piloto— está en
+`docs/instrumentacion.md`, y la hoja de ejecución de
+`docs/plantilla-corrida.md` se ajustó al esquema nuevo.
 
-**Objetivo.** Especificar, para cada métrica, la herramienta, el comando, la
-frecuencia de muestreo, la agregación y el formato de registro.
+**Decisiones registradas.**
 
-**Decisiones que hay que tomar.**
+- **Reloj.** `time.perf_counter_ns()`, que en Linux es
+  `clock_gettime(CLOCK_MONOTONIC)` con resolución de 1 ns. Se descarta el
+  reloj del sistema porque es ajustable y una corrección NTP en mitad de una
+  corrida produciría latencias negativas o infladas; se descarta el reloj de
+  ROS 2 porque deriva del reloj del sistema, puede sustituirse por `/clock` y
+  devuelve un mensaje, de modo que su origen y su costo no serían los mismos
+  que en la implementación monolítica, que no tiene reloj de ROS. Se verificó
+  en el equipo que el reloj es comparable entre procesos: una lectura tomada
+  en un proceso hijo cae dentro del intervalo medido por el padre. Como el
+  reloj monótono no es tiempo de calendario, cada corrida registra su desfase
+  con `CLOCK_REALTIME` al inicio y al cierre.
+- **Puntos de marca.** Dos por fotograma y por operación: recepción en la
+  primera instrucción de la operación y despacho **inmediatamente antes de
+  publicar**. La marca de despacho no puede tomarse al retorno del callback:
+  la serialización pertenece a la frontera y no al cómputo del nodo. La
+  latencia primaria es `t_envio(7) − t_recv(1)` (§3.8.1, incluye la
+  adquisición) y se informa además, como descomposición, `t_envio(7) −
+  t_envio(1)`, que la excluye; la adquisición en B/C/D también depende de la
+  arquitectura porque decodifica en lazo abierto y compite por la CPU.
+- **Transporte de la instrumentación.** Solo el índice viaja, en
+  `header.frame_id` con formato fijo (`f` + seis dígitos), sin que ninguna
+  operación lo modifique. **La marca no viaja**: cada proceso escribe sus dos
+  marcas en su propio registro y la consolidación une filas de procesos
+  distintos por `(ventana, fotograma)`, porque `CLOCK_MONOTONIC` tiene el
+  mismo origen en todos los procesos del anfitrión. `header.stamp` queda sin
+  uso como portador de tiempo, de modo que no hay un campo con significado
+  falso más allá de `frame_id`, que no designa un marco de `tf2` y así se
+  declara en §3.8.1. Se descarta un tipo de mensaje propio porque cambiaría
+  los tipos y las cargas útiles de `tab:operations` y agregaría una capa de
+  serialización que la implementación monolítica no tiene: el instrumento no
+  debe modificar el objeto que mide. La cabecera de ROS 2 no tiene número de
+  secuencia, de modo que el índice debe viajar explícitamente: sin él no se
+  distinguen descartes de saltos de orden, ni el analizador puede emparejar
+  los extremos de la cadena cuando hay descartes.
+- **CPU y memoria.** `tegrastats` para el sistema (porcentaje y frecuencia por
+  núcleo, RAM en uso y total), más un **ámbito de control (cgroup v2)** creado
+  por corrida con `systemd-run --user --scope` para atribuir a la cadena el
+  tiempo de CPU (`cpu.stat:usage_usec`, contador acumulado: se lee al abrir y
+  al cerrar la ventana, sin error de muestreo) y la memoria (`anon`+`shmem` de
+  `memory.stat`, a 1 Hz). El ámbito abarca todos los procesos de la
+  configuración, con sus hilos de middleware, y la implementación monolítica
+  corre en uno equivalente, de modo que las dos se miden igual. Es la señal
+  con la que se contrasta H3, porque el porcentaje de `tegrastats` es del
+  sistema completo e incluye el monitoreo. Se descartó el sondeo de
+  `/proc/<pid>/stat` (obliga a rastrear PIDs y deja la CPU muestreada) y
+  `psutil` (leería lo mismo y agregaría una dependencia al entorno fijado en
+  §3.2). En la Orin Nano la memoria es unificada y el GPU no tiene memoria
+  separable: §2.6 condicionaba la memoria de GPU a que existiera una medición
+  confiable, y la condición no se cumple, de modo que se informa una sola
+  cantidad del sistema más la huella de la cadena.
+- **GPU.** `GR3D_FREQ` (proporción de tiempo de activación del GPU) más la
+  frecuencia del dominio de `devfreq`. No hay `nvidia-smi` en Jetson y el
+  controlador no publica ocupación de unidades de ejecución; la cifra se
+  informa como activación y no como fracción de capacidad.
+- **Potencia: se mide.** `VDD_IN` de `tegrastats` (monitor INA3221 de tres
+  canales del módulo: `VDD_IN`, `VDD_CPU_GPU_CV`, `VDD_SOC`), con potencia
+  media, máxima, energía por fotograma (`eq:energia-fotograma`) y FPS/W
+  (`eq:fps-watio`). Se declara que `VDD_IN` es la potencia del módulo y no la
+  del equipo, y que la comparación vale por la identidad del instrumento y del
+  estado, no por la exactitud absoluta de la lectura. La potencia no entra en
+  H1–H4: se informa como resultado descriptivo. Cada corrida tiene una **línea
+  base en reposo**, tomada de los últimos 60 s de la espera de enfriamiento
+  que §3.7 paso 8 ya contempla —no agrega tiempo a la campaña—, porque se
+  midió que la potencia de entrada se desplaza del orden de 0,4 W en un
+  minuto, magnitud comparable a la diferencia que se busca medir. Esto resuelve el `% TODO` de
+  `sections/capitulo-2.tex` sobre el método de medición de potencia, que era
+  la nota de este pendiente, y agrega dos entradas a `referencias.bib`
+  (`nvidiacorporation2026tegrastats`, `nvidiacorporation2026potencia`),
+  coordinado con P-19 y P-22.
+- **Intervalo de monitoreo: 500 ms.** Elegido con una medición en el equipo y
+  no por convención: a 100 ms `tegrastats` no sostiene la cadencia (9,1 Hz
+  pedidos 10) y cuesta 1,25 % de un núcleo; a 500 ms sostiene 2,0 Hz con
+  desviación del 2 %, cuesta 0,37 % de un núcleo y entrega 120 muestras en la
+  ventana regulada y 240 en la saturada. Los campos de media y máximo que
+  imprime la herramienta no se usan: se verificó que se acumulan desde el
+  arranque de la herramienta y no desde el comienzo de la ventana, de modo que
+  la agregación se calcula sobre el valor instantáneo de cada muestra, con
+  media ponderada por el intervalo entre muestras.
+- **Perturbación.** Marcas y muestras se acumulan en memoria y se escriben al
+  cerrar cada ventana; no hay entrada y salida dentro de la ventana. El arnés
+  que monitorea es siempre un proceso distinto del que ejecuta la cadena,
+  incluso en A, porque de otro modo A cargaría con el costo del monitoreo. El
+  costo de la instrumentación se midió en el equipo (1,0 µs por operación
+  medida, 7 µs por fotograma: 0,07 % de un fotograma de 10 ms) y el del
+  monitoreo también (0,37 % de un núcleo), y ambos se informan para que puedan
+  descontarse.
+- **Formato.** Una base SQLite por corrida (`corridas/<id>/<id>.db`), más el
+  registro crudo de `tegrastats` y la hoja de ejecución; la base de la campaña
+  se consolida con un paso reproducible y es regenerable. La columna
+  `omitidos` reemplaza al indicador binario `descartado` de la plantilla: los
+  descartes de una frontera son la suma de los fotogramas que el productor
+  publicó y el consumidor no recibió, y un bit no puede expresarlos.
+- **Integridad del monitoreo.** Criterio (iv) de §3.7 cuantificado:
+  `N_esp = Δt / mediana(Δt)`; la ventana es válida si
+  `N_obs ≥ 0,97 N_esp` y ninguna separación entre muestras supera
+  `3 · mediana(Δt)`. La hoja de ejecución registra las cuatro cifras, de modo
+  que la comprobación sea auditable.
 
-- **Reloj y marcas de tiempo.** Usar un reloj monótono del mismo anfitrión;
-  precisar la unidad y el punto exacto de cada marca (entrada a la primera
-  etapa y disponibilidad de la salida postprocesada). Definir cómo viaja el
-  identificador de fotograma entre procesos y cómo se evita que una marca se
-  pierda o se sobrescriba.
-- **CPU y RAM.** Herramienta (`tegrastats`, `jetson-stats`, `psutil` u otra),
-  intervalo de muestreo, si se mide por proceso o por sistema, y cómo se
-  calculan promedio y máximo. Incluir el costo del propio monitoreo.
-- **GPU.** Herramienta y métrica exacta (por ejemplo, frecuencia o porcentaje
-  de utilización). Verificar qué expone realmente la plataforma; no asumir
-  `nvidia-smi` en Jetson.
-- **Potencia.** Decidir si se mide o se excluye. Si se mide: método (raíles
-  INA3221, `tegrastats`, medidor externo), intervalo, línea base en reposo y
-  fórmula de energía por fotograma. Si se excluye, declararlo y ajustar §3.8.6
-  y §3.9.
-- **Formato de datos.** Registro por fotograma y resumen por ejecución;
-  columnas mínimas (condición, repetición, resolución, fotograma, marcas,
-  latencia, detecciones, uso de recursos); metadatos de la ejecución; nombres
-  de archivo estables.
-- **Perturbación.** Definir si el registro se escribe en disco durante la
-  medición o en memoria y se vuelca al final, y mantener el mismo esquema en
-  todas las configuraciones.
+**Verificación empírica en el equipo (2026-10-19).** Se comprobaron en la
+Orin Nano, con L4T R39.2.1 y CPython 3.12.3: los campos que `tegrastats`
+reporta y los que no (`EMC_FREQ`, `SWAP`, frecuencia de GPC en `GR3D_FREQ`);
+el significado de los tres valores de cada raíl; la cadencia y el costo de la
+herramienta a cuatro intervalos; el costo de las marcas; la igualdad del reloj
+entre procesos; las rutas de `sysfs` para las frecuencias de GPU
+(`17000000.gpu`) y de memoria (`bwmgr`), y la legibilidad de los raíles INA3221
+sin privilegios. Los valores están en `docs/instrumentacion.md` §3.1 y §2.4.
+Se observó además que el intérprete que resuelve `python3` en el `PATH` del
+equipo es uno de Homebrew (3.15.0) y no el del sistema (3.12.3): la cadena y
+el arnés deben invocarse con `/usr/bin/python3` o con el intérprete de ROS 2,
+y conviene fijarlo por ruta.
 
-**Contexto y restricciones.** El capítulo 2 §2.6 y el capítulo 3 §3.8 ya
-definen qué significa cada métrica. Las mediciones de latencia de ROS 2 en la
-literatura usan marcas en fronteras equivalentes (`betz2023a`, `kamiya2025`).
-La potencia es opcional y no debe amenazar la finalización. No se comparan
-herramientas de monitoreo: se elige una y se documenta.
+**Archivos modificados.** `sections/capitulo-3.tex` §3.8 (ocho subapartados y
+dos tablas nuevas: `tab:metric-instrumentation`, `tab:sampling-interval`);
+`sections/capitulo-2.tex` §2.6 (cita del método y remisión a `sec:power`);
+`referencias.bib` (dos entradas); `docs/instrumentacion.md` (nuevo);
+`docs/plantilla-corrida.md` (§1 formatos, §2 hoja con integridad y recursos,
+§3 columnas, §5 línea base de potencia por corrida); `AGENTS.md` (índice de
+documentos de trabajo).
 
-**Decisión heredada de P-01.** La herramienta de monitoreo térmico y de
-recursos es `tegrastats` (viene con JetPack, sin instalación ni servicio
-adicional, y entrega temperatura, potencia, uso de GPU, CPU y RAM en un
-solo flujo de texto). `jtop`/`jetson-stats` queda descartado. Verificar los
-nombres de los campos contra la documentación oficial antes de fijarlos en
-la tabla de §3.8.
+**Decisiones confirmadas por el autor (2026-10-19) y ya aplicadas.**
 
-**Entregable.** §3.8 con una tabla métrica→herramienta→comando→intervalo→
-agregación; especificación de instrumentación para P-11; decisión explícita
-sobre potencia.
+1. *Transporte del índice.* Solo el índice viaja, en `header.frame_id`
+   (`f%06d`). `header.stamp` **no** se usa como portador de tiempo y la marca
+   de adquisición no se transporta: cada proceso escribe sus dos marcas en su
+   propio registro y la consolidación une filas por `(ventana, fotograma)`,
+   porque `CLOCK_MONOTONIC` tiene el mismo origen en todos los procesos. Se
+   descartó el tipo de mensaje propio (cambiaría los tipos y las cargas útiles
+   de `tab:operations` y agregaría una capa de serialización que A no tiene) y
+   se declaró en §3.8.1 que `frame_id` no designa un marco de `tf2`.
+2. *Potencia.* Se incluye como métrica descriptiva, fuera de H1–H4, con
+   cláusula de escape: si el piloto muestra lecturas inestables, se informa la
+   inestabilidad y la métrica no sostiene conclusiones. `sections/capitulo-2.tex`
+   §2.6.6 dejó de llamarla opcional.
+3. *Atribución a la cadena.* Se mide, y no por sondeo de `/proc/<pid>/stat`
+   como especificaba la primera versión del documento interno, sino por
+   **ámbito de control (cgroup v2)** creado por corrida con `systemd-run
+   --user --scope`: `cpu.stat:usage_usec` es un contador acumulado (exacto, sin
+   error de muestreo) y `memory.stat` da `anon`+`shmem`. Verificado en el
+   equipo: cgroup v2 unificado y `systemd-run --user --scope` sin `sudo`;
+   con un proceso de 2 s de reloj, `usage_usec` = 1 730 843 µs. Evita rastrear
+   PIDs y mantiene la simetría con A, que corre en un ámbito equivalente.
+4. *Línea base de potencia.* Una **por corrida**, tomada de los últimos 60 s
+   de la espera de enfriamiento que el procedimiento ya contempla (§3.7 paso
+   8), de modo que no agrega tiempo a la campaña ni corridas ni condiciones.
+   Motivo medido: con 60 s de muestreo, `VDD_IN` se desplazó 0,34 W en torno a
+   su media y 0,41 W entre el comienzo y el final de la ventana —del orden de
+   la diferencia que se busca medir—, de modo que la potencia absoluta no es
+   comparable entre bloques sin referencia.
 
-**Criterios de aceptación.** Cada métrica tiene un procedimiento reproducible;
-las marcas de tiempo son comparables entre A, B y C; el formato de datos
-satisface P-14; la decisión sobre potencia está escrita; el monitoreo no
-introduce diferencias entre configuraciones.
+Aplicado en: `sections/capitulo-3.tex` (§3.8.1 cabecera, §3.8.2 remisión,
+§3.8.3 y §3.8.4 ámbito de control, §3.8.6 línea base, §3.8.7, tabla de
+instrumentos, §3.7 paso 8), `referencias.bib` (`linuxkernel2026cgroup`),
+`docs/instrumentacion.md` (§1 sin pendientes y con las cuatro decisiones, §2.3
+reescrito, §3.3 nueva, §4 esquema con el ámbito y la línea base, volcado de
+§9) y `docs/plantilla-corrida.md` (bloque `ambito:`, `recursos:` con memoria
+del ámbito y potencia atribuible, línea base por corrida).
 
-**Dependencias.** Requiere P-02 para las herramientas disponibles.
-Desbloquea P-11 y P-14.
-
-**Notas.** Si se mide potencia, agregar la fuente de método que falta en
-`sections/capitulo-2.tex:472-474` (coordinar con P-19 y P-22).
-
-**Herencia de P-04 (2026-10-19).** Las marcas de la cadena tienen dos
-requisitos nuevos: los mensajes deben propagar sin modificar la marca de
-adquisición y un identificador de fotograma, porque §3.5.3 compara por índice
-de fotograma y no por posición; y los registros deben permitir contar los
-fotogramas en vuelo por corrida, que es la cuantía de solapamiento que §3.6.1
-promete informar. Los mensajes que cruzan fronteras se declaran en
-`tab:operations`.
-
-**Herencia de P-06 (2026-10-19).** §3.7 fija tres requisitos que §3.8 debe
-satisfacer: (i) cada nodo registra, por fotograma, el índice de fotograma y
-los instantes de recepción y de despacho, porque de ahí salen los descartes
-por frontera y los fotogramas en vuelo; (ii) la latencia se calcula solo con
-la marca de entrada a la primera etapa y la de salida de la última, de modo
-que las marcas internas no entran en la comparación entre arquitecturas; y
-(iii) el monitoreo no puede dejar huecos dentro de las ventanas de 60 s y
-120 s, porque un hueco invalida la corrida. El registro por nodo también
-sostiene la verificación de equivalencia por índice de fotograma.
+**Observación para P-02.** El equipo informa OpenCV 4.8.0, mientras
+`tab:software-environment` fija 4.6.0. No se toca aquí porque la tabla es de
+P-02; hay que verificarla antes de la campaña.
 
 ---
 
@@ -1089,8 +1183,12 @@ automática y registrar los datos con metadatos suficientes para reproducirla.
 - Orquestador que, para una condición, arranque la configuración A, B o C,
   espere el calentamiento, ejecute la carga durante la duración fijada, recoja
   las métricas, detenga los procesos y guarde los resultados.
-- Monitoreo de CPU, RAM, GPU y, si corresponde, potencia, con la herramienta
-  y el intervalo de P-07.
+- Monitoreo de CPU, RAM, GPU y potencia, con la herramienta y el intervalo de
+  P-07 (500 ms), y muestreo propio a 1 Hz de frecuencias y de la memoria del
+  ámbito de control.
+- Lanzar la cadena dentro de un ámbito de control propio de la corrida
+  (`systemd-run --user --scope`), que es lo que permite atribuirle CPU y
+  memoria (`docs/instrumentacion.md` §3.3).
 - Registro por fotograma y resumen por ejecución; metadatos: fecha, commit,
   versiones de software, modo de energía, temperatura inicial y final,
   resolución, configuración y cualquier desviación.
@@ -1454,7 +1552,8 @@ resumen debe decirlo con precisión; no maquillarlo.
 
 ### P-19 · Cerrar las brechas de citas de los capítulos 1–2
 
-**Estado actual.** Quedan cinco brechas explícitas:
+**Estado actual.** Quedan cuatro brechas explícitas; una quinta, la de
+potencia, quedó resuelta en P-07:
 
 1. **Privacidad como motivación** (`sections/capitulo-1.tex:31-34`). El
    comentario advierte que la afirmación no está respaldada por las fuentes
@@ -1466,9 +1565,10 @@ resumen debe decirlo con precisión; no maquillarlo.
    (`sections/capitulo-2.tex:26-33`). No hay una revisión dedicada de detección
    de objetos en la biblioteca; los estudios de borde citados usan solo
    familias de una etapa.
-4. **Métodos de medición de potencia en Jetson**
-   (`sections/capitulo-2.tex:472-474`). Solo relevante si P-07 decide medir
-   potencia.
+4. **Métodos de medición de potencia en Jetson** — **resuelta en P-07**. Se
+   decidió medir y el método se fija en `sec:power`, con las entradas
+   `nvidiacorporation2026potencia` y `nvidiacorporation2026tegrastats`; el
+   `% TODO` de `sections/capitulo-2.tex` se eliminó.
 5. **Atribución de figuras** (`sections/capitulo-2.tex:79` y `:170`). Se
    solapa con P-21; aquí se resuelve la fuente, no la geometría.
 
@@ -1487,9 +1587,7 @@ explícita de eliminarla.
 - Taxonomía: agregar una revisión de detección de objetos a Zotero y a
   `referencias.bib`, o reescribir el pasaje sin la taxonomía general. No citar
   los estudios de borde para una afirmación que no hacen.
-- Potencia: si se mide, agregar la fuente del método (documentación oficial,
-  `tegrastats`, raíles de potencia); si no, declarar la exclusión y eliminar
-  el `% TODO`.
+- Potencia: hecho en P-07 (fuente del método agregada; `% TODO` eliminado).
 - Figuras: agregar la fuente o el crédito que corresponda; si la figura es
   propia, decirlo y conservar la fuente editable.
 
@@ -1505,7 +1603,7 @@ Zotero y `referencias.bib` si corresponde; texto ajustado.
 hay citas que no respalden la frase; las claves nuevas existen en la
 bibliografía; el documento sigue compilando.
 
-**Dependencias.** Ninguna, salvo el punto de potencia, que depende de P-07.
+**Dependencias.** Ninguna: el punto de potencia quedó resuelto en P-07.
 Coordinar con P-20 y P-22.
 
 **Notas.** No convertir la búsqueda en una revisión bibliográfica nueva: el

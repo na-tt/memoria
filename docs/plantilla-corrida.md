@@ -9,7 +9,9 @@ desviaciones que exige §3.7.3. Es la especificación que el arnés de P-11 debe
 materializar; hasta entonces sirve para ejecutar a mano la campaña piloto
 (P-12) y la campaña final (P-13) sin decisiones implícitas.
 
-Última revisión: 2026-10-19 (P-06).
+Última revisión: 2026-10-19 (P-06). Los formatos de archivo y las columnas del
+registro por fotograma se revisaron el mismo día en P-07; el detalle de la
+instrumentación está en `docs/instrumentacion.md`.
 
 ---
 
@@ -19,10 +21,13 @@ Cada corrida produce tres piezas, con nombres estables:
 
 | Pieza | Formato | Nombre |
 |---|---|---|
-| Hoja de ejecución | YAML | `corridas/<id>.yaml` |
-| Registro por fotograma | CSV, uno por ventana | `corridas/<id>-regulada.csv`, `corridas/<id>-saturada.csv` |
-| Salida del monitoreo | log de texto de `tegrastats` | `corridas/<id>-tegrastats.log` |
+| Hoja de ejecución | YAML | `corridas/<id>/hoja.yaml` |
+| Registro por fotograma y muestras del monitoreo | base SQLite | `corridas/<id>/<id>.db` |
+| Salida cruda del monitoreo | log de texto de `tegrastats` | `corridas/<id>/tegrastats.log` |
 
+El esquema de la base, el patrón de código de las marcas y las verificaciones
+que hay que hacer en el equipo están en `docs/instrumentacion.md` (P-07). La
+base se escribe al cerrar cada ventana y nunca durante la ventana.
 El identificador `<id>` es `c<AA><R>-b<BB>-<nn>`: arquitectura
 (`a`–`d`), resolución (`1`–`3`), bloque (`01`–`10`) y posición dentro del
 bloque (`01`–`12`). El archivo de cada corrida inválida y repetida conserva
@@ -34,7 +39,7 @@ versiona con el artefacto experimental.
 ## 2. Hoja de ejecución
 
 ```yaml
-# corridas/<id>.yaml
+# corridas/<id>/hoja.yaml
 id: c-b2-b03-05
 fecha: 2026-11-04T14:32:07-03:00
 
@@ -44,6 +49,13 @@ condicion:
   bloque: 3
   posicion_en_bloque: 5
   semilla_orden: 20261104   # semilla de la permutación del bloque
+
+ambito:
+  unidad: cadena-c-b2-b03-05          # systemd-run --user --scope --unit=...
+  ruta: /sys/fs/cgroup/user.slice/...  # resuelta con systemctl --user show -p ControlGroup
+  procesos_lanzados: 2                 # 1 en A, 2 en B, 4 en C, 7 en D; debe coincidir con pids.current
+  cpu_usec_inicio: <n>                 # cpu.stat:usage_usec al arrancar la cadena
+  cpu_usec_cierre: <n>                 # al terminar; Delta/Delta t es la CPU de la corrida
 
 procedencia:
   artefacto_commit: <hash>
@@ -71,6 +83,50 @@ ventanas:
     fotogramas_en_vuelo_max: <n>
     fotogramas_en_vuelo_promedio: <n>
 
+# Integridad del monitoreo, igual en las dos ventanas (P-07, §3.8.7).
+monitoreo:
+  regulada:
+    muestras_esperadas: 117      # duracion_s / periodo_mediano_ms
+    muestras_observadas: <n>
+    periodo_mediano_ms: <p>
+    separacion_maxima_ms: <g>    # valida si < 3 * periodo_mediano_ms
+  saturada:
+    muestras_esperadas: 235
+    muestras_observadas: <n>
+    periodo_mediano_ms: <p>
+    separacion_maxima_ms: <g>
+
+# Agregados de recursos por ventana (P-07, docs/instrumentacion.md §3.4).
+recursos:
+  regulada:
+    cpu_sistema_pct_media: <x>      # media de los seis nucleos, ponderada por intervalo
+    cpu_sistema_pct_max: <x>
+    cpu_cadena_pct_un_nucleo: <x>   # Delta(usage_usec del cgroup)/Delta t
+    ram_sistema_mb_media: <x>
+    memoria_cadena_mb_media: <x>    # anon + shmem del cgroup, muestreado a 1 Hz
+    memoria_cadena_mb_max: <x>
+    gpu_activacion_pct_media: <x>
+    potencia_reposo_mw: <x>         # linea base: ultimos 60 s del enfriamiento previo
+    potencia_media_mw: <x>          # VDD_IN de la ventana
+    potencia_maxima_mw: <x>
+    potencia_atribuible_mw: <x>     # media de la ventana - potencia_reposo_mw
+    energia_por_fotograma_j: <x>
+    fps_por_watio: <x>
+  saturada:
+    cpu_sistema_pct_media: <x>
+    cpu_sistema_pct_max: <x>
+    cpu_cadena_pct_un_nucleo: <x>
+    ram_sistema_mb_media: <x>
+    memoria_cadena_mb_media: <x>
+    memoria_cadena_mb_max: <x>
+    gpu_activacion_pct_media: <x>
+    potencia_reposo_mw: <x>
+    potencia_media_mw: <x>
+    potencia_maxima_mw: <x>
+    potencia_atribuible_mw: <x>
+    energia_por_fotograma_j: <x>
+    fps_por_watio: <x>
+
 estado:
   modo_energia: MAXN_SUPER   # lo que informe nvpmodel -q
   gobernadores: {cpu: performance, gpu: performance, memoria: <por omisión>}
@@ -91,9 +147,8 @@ validez:
   resultado: valida               # valida | repetida | descartada
 
 archivos:
-  registro_regulada: corridas/<id>-regulada.csv
-  registro_saturada: corridas/<id>-saturada.csv
-  monitoreo: corridas/<id>-tegrastats.log
+  base: corridas/<id>/<id>.db
+  monitoreo_crudo: corridas/<id>/tegrastats.log
 desviaciones: []                  # identificadores de entradas del registro de desviaciones
 ```
 
@@ -111,9 +166,13 @@ Una fila por fotograma y por frontera observada, con estas columnas mínimas:
 | `fotograma` | índice en el clip (0–1216), no la posición en la ventana |
 | `nodo` | identificador de la operación que registra la fila (`tab:operations`) |
 | `t_recv_ns` | reloj monótono de recepción |
-| `t_envio_ns` | reloj monótono de despacho |
-| `descartado` | `1` si la muestra pendiente fue reemplazada en esa frontera |
+| `t_envio_ns` | reloj monótono de despacho, inmediatamente antes de publicar |
+| `omitidos` | fotogramas que la etapa productora publicó entre la fila anterior y esta; los descartes de una frontera son su suma |
 
+`omitidos` reemplaza al indicador binario `descartado` de la versión inicial de
+esta plantilla: un bit no puede expresar cuántos fotogramas perdió una
+frontera, y el conteo por diferencia de índices es exactamente lo que §3.8
+define como descarte en una frontera.
 La latencia de extremo a extremo se calcula solo con la fila del primer nodo y
 la del último (§3.8.1); las filas internas sirven para contar descartes y
 fotogramas en vuelo (§3.7.2).
@@ -148,6 +207,7 @@ durante ella:
 | Conducta del middleware ante la muestra pendiente | reemplazo \| retención | manifiesto de la campaña |
 | Umbral de reposo | temperatura del SoC | manifiesto de la campaña |
 | Semilla y orden de cada bloque | `semilla_orden` | hoja de cada corrida |
+| Línea base de potencia en reposo, una por corrida | `potencia_reposo_mw` | hoja de cada corrida |
 
 ## 6. Verificación de sensibilidad al perfil de QoS
 
