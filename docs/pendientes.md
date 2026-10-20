@@ -62,7 +62,7 @@ Convenciones del documento:
 | `sections/abstract.tex` | Incompleto | Los mismos dos `\todo`, en inglés. |
 | `sections/capitulo-1.tex` | Borrador avanzado | Dos `% TODO` de cita (privacidad; adopción de rclpy). |
 | `sections/capitulo-2.tex` | Borrador avanzado | Cuatro `% TODO` sustantivos de cita/atribución; sin `\todo` visibles desde P-03. Ocho figuras. |
-| `sections/capitulo-3.tex` | Borrador avanzado | 10 `\todo` visibles, todos de P-06, P-07 y P-08; §3.1–§3.6 cerradas; sin resultados. |
+| `sections/capitulo-3.tex` | Borrador avanzado | 6 `\todo` visibles: cinco de P-07 (§3.8) y uno de P-08 (§3.9); §3.1–§3.7 cerradas; sin resultados. |
 | `sections/conclusiones.tex` | Vacío | Solo `\chapter*{Conclusiones}`; no está numerado ni tiene secciones. |
 | Capítulos 4, 5 y 6 | **No existen** | `docs/plan.md` los exige y el capítulo 1 los anuncia. |
 | `sections/anexos.tex` | Relleno | `\appendix` + `\chapter{Apendice A}`. |
@@ -86,7 +86,7 @@ referencian desde el texto.
 | P-03 | Seleccionar la carga de trabajo y el modelo | **HECHO** | P-01, P-02 | Alta |
 | P-04 | Definir las configuraciones de particionamiento | **HECHO** | P-03 | Alta |
 | P-05 | Fijar la matriz experimental y las resoluciones | **HECHO** | P-03, P-04 | Alta |
-| P-06 | Diseñar el procedimiento de benchmark | AHORA | P-03, P-05 | Alta |
+| P-06 | Diseñar el procedimiento de benchmark | **HECHO** | P-03, P-05 | Alta |
 | P-07 | Definir la instrumentación y la medición de métricas | PARCIAL | P-02 | Alta |
 | P-08 | Preespecificar el análisis estadístico | AHORA | P-05 (para detalles) | Alta |
 | P-09 | Implementar la cadena monolítica | AHORA | P-03, P-05 | Alta |
@@ -110,7 +110,7 @@ referencian desde el texto.
 Ruta crítica: **P-01 → P-02 → P-03 → P-04 → P-05 → P-06/P-07 → P-09 → P-10
 → P-11 → P-12 → P-13 → P-14 → P-15 → P-16 → P-17 → P-18 → P-25**.
 
-Trabajo que puede avanzar en paralelo desde ya: P-06, P-08, P-19, P-20,
+Trabajo que puede avanzar en paralelo desde ya: P-07, P-08, P-19, P-20,
 P-22, P-23 y la parte de P-24 que no dependa de decisiones experimentales.
 
 ---
@@ -685,83 +685,134 @@ justificación de §3.6.
 
 ### P-06 · Diseñar el procedimiento de benchmark
 
-**Estado actual.** §3.7 tiene `\todo{SPECIFY}` para el calentamiento
-(`sections/capitulo-3.tex:232`), la duración (`236`), el reinicio (`244`) y el
-número de repeticiones (`217`). El texto ya fija el modo de energía, la carga
-en segundo plano y la neutralización del escalado de frecuencia
-(`kronauer2021`), pero no define cómo se conduce la fuente de datos ni qué
-ocurre cuando el productor es más rápido que el consumidor.
+**Estado: completado (2026-10-19).** §3.7 se reescribió y quedó dividida en
+cuatro subsecciones: «Modo de conducción de la fuente» (`sec:driving`),
+«Política de descarte y denominadores» (`sec:discards`), «Secuencia de la
+corrida» (`sec:run-sequence`) y «Hoja de ejecución y registro de
+desviaciones» (`sec:run-sheet`). Decisiones fijadas:
 
-**Objetivo.** Convertir §3.7 en un procedimiento ejecutable, repetible y
-comparable entre A, B y C.
+- **Conducción: lazo abierto, sin acuses ni barreras.** Se descarta la
+  contrapresión clásica porque suprimiría el solapamiento de §3.6.1, haría
+  depender la oferta de la variable medida y agregaría un camino de retorno
+  que ninguna arquitectura comparada tiene.
+- **Dos ventanas de medición por corrida, no dos condiciones.** La *ventana
+  saturada* (fuente sin ritmo) mide la tasa de procesamiento, los descartes,
+  la utilización de recursos y los fotogramas en vuelo; la *ventana regulada*
+  (fuente decimada a `f0 = 30/k` FPS, por debajo de la capacidad de las doce
+  condiciones) mide la latencia de extremo a extremo sobre todos los
+  fotogramas y sostiene la verificación de equivalencia de §3.5.3. El divisor
+  `k` se fija en los pilotos como el menor entero positivo que no produce
+  descartes en ninguna condición; la regla garantiza la misma tasa y la misma
+  secuencia de fotogramas en las doce condiciones. La razón de separar las
+  ventanas es doble: una tasa fija baja trunca la tasa de procesamiento de las
+  configuraciones rápidas, y una fuente saturada recorta la distribución de
+  latencia por el lado alto, con un recorte que depende de la tasa de cada
+  configuración.
+- **Política de descarte: se descarta el fotograma más antiguo y se conserva
+  el más reciente.** No es una decisión nueva: es la consecuencia de
+  `KEEP_LAST` con profundidad 1 (§3.2.1). El texto declara además que el
+  piloto verifica si el middleware reemplaza la muestra pendiente o retiene al
+  publicador, porque ambas conductas respetan la invariante de §3.6.1 —a lo
+  sumo una muestra pendiente por frontera— y ninguna acumula latencia en cola.
+- **Denominadores.** `FPS` = fotogramas completados / duración efectiva de la
+  ventana; los descartes no entran en el numerador ni en el denominador y se
+  informan aparte como tasa de oferta y proporción de descarte por frontera.
+  La latencia se compara solo con la ventana regulada; la de la ventana
+  saturada se registra como material de diagnóstico, condicionada a la
+  aceptación del fotograma. Los descartes se cuentan por índice de fotograma y
+  los fotogramas en vuelo se derivan del mismo registro, sin usar marcas
+  internas para comparar arquitecturas.
+- **Valores concretos.** Calentamiento por meseta térmica antes de *cada*
+  ventana: mínimo 120 s, bloques de 60 s, ΔT < 0,5 °C, máximo 300 s. Ventana
+  regulada de 60 s; ventana saturada de 120 s. Diez bloques de doce corridas
+  en orden aleatorio con semilla versionada; la corrida es la unidad de
+  repetición. Validez de la corrida en cinco condiciones (equivalencia,
+  ausencia de descartes en la ventana regulada, estabilidad térmica,
+  integridad del monitoreo y ventanas completas); una corrida inválida se
+  repite al final del bloque y se anota. Reinicio por enfriamiento hasta un
+  umbral de reposo fijado en los pilotos. Estimación: 120 corridas, del orden
+  de 18 h de máquina.
+- **Herencia de P-04 resuelta.** La lista no introduce sincronización que
+  suprima el solapamiento, declara la política de descarte y el denominador
+  idénticos en las cuatro configuraciones, y agrega el criterio de validez que
+  §3.3.1 y §3.5.3 ya prometían: comparación por índice de fotograma contra la
+  salida de referencia, con la decisión explícita de repetir la corrida ante
+  cualquier discrepancia.
+- **Alternativa registrada y rechazada: `KEEP_LAST` de profundidad 10**, que
+  es la del perfil por omisión de ROS 2 (`rmw_qos_profile_default`). Se
+  evaluó durante P-06 como forma de evitar la ventana regulada, con el
+  argumento de que un historial más profundo absorbería la fuente sin ritmo.
+  No lo hace: con oferta superior a la capacidad la cola se llena y se queda
+  llena, de modo que la profundidad sólo cambia la forma del artefacto (de
+  truncamiento a encolamiento de orden `(N-1)/λ`, unos 300 ms con `N = 10` y
+  30 FPS, frente a un costo por fotograma de milisegundos). Tampoco acerca al
+  caso monolítico: a profundidad 10 la cadena procesa fotogramas de ~1/3 s de
+  antigüedad, mientras el bucle monolítico procesa siempre el más reciente.
+  Se conserva la profundidad 1 y la decisión se prueba empíricamente con la
+  verificación de sensibilidad de los pilotos (§3.7.3, cuatro corridas sobre
+  C a 640×360), para responder en la defensa con una medición y no con un
+  argumento. Nota: «canónico» no resuelve la elección por sí solo, porque
+  ROS 2 tiene dos perfiles habituales para datos de sensor
+  (`rmw_qos_profile_default`, profundidad 10 confiable;
+  `rmw_qos_profile_sensor_data`, profundidad 5 best-effort).
+- **Corrección de §3.2.1.** El texto argumentaba que una profundidad mayor
+  que uno «introduciría solapamiento entre etapas». Es incorrecto: con
+  profundidad 1 el solapamiento ya existe —una muestra pendiente por frontera
+  es justamente lo que permite los `k` fotogramas en vuelo de §3.6.1—. Lo que
+  la profundidad mayor agrega es encolamiento cuya ocupación depende del
+  desajuste entre oferta y capacidad; el argumento quedó reescrito así, con
+  el cálculo de `(N-1)/λ` y el costo de memoria.
+- **Corrección de §3.7.2.** El texto afirmaba que la contrapresión
+  «eliminaría la distinción entre la capacidad de la cadena y la de su etapa
+  más lenta». También es incorrecto: el rendimiento de una cadena solapada es
+  el de su cuello de botella con descarte o con bloqueo. Lo que la
+  contrapresión destruye es la exogeneidad de la tasa ofrecida (la medición
+  pasa a ser un equilibrio consigo misma), los descartes como observable
+  (cero por construcción), los fotogramas en vuelo como cantidad emergente, y
+  la formulación de la pregunta de despliegue. Además, A no tiene frontera
+  donde aplicar la espera. El párrafo quedó reescrito con esos argumentos.
+- **Nueva condición de validez.** La ventana saturada exige que la tasa de
+  oferta (fotogramas despachados por la etapa de adquisición) exceda con
+  holgura la tasa de completación; si se pegan, la fuente quedó estrangulada
+  por la espera en las fronteras y la corrida no es una ventana saturada.
+  Esto es lo que distingue saturación real de control de flujo, y es la misma
+  incógnita que el piloto resuelve sobre la conducta del middleware.
+- **Plantilla de corrida.** `docs/plantilla-corrida.md` contiene la hoja de
+  ejecución en YAML, las columnas mínimas del registro por fotograma, el
+  formato del registro de desviaciones, las decisiones que fija el piloto y
+  el diseño de la verificación de sensibilidad al perfil de QoS. Es la
+  especificación que P-11 debe materializar.
 
-**Decisiones que hay que tomar.**
+Ajustes de coherencia en el mismo commit: §3.5.3 pasa a declarar que la salida
+de referencia cubre la totalidad del clip (antes «un tramo fijo») y remite la
+tasa de prueba a `sec:driving`; §3.6 remite duración y repeticiones a §3.7;
+§3.8.2 precisa qué cuenta como fotograma procesado; §3.9 agrega la tasa
+regulada y la hoja de ejecución a la lista de reproducibilidad; se actualizó el
+comentario de cabecera de `capitulo-3.tex`. Quedan 6 `\todo` visibles en el
+capítulo: cinco de P-07 (§3.8) y uno de P-08 (§3.9).
 
-- **Modo de conducción.** ¿La fuente publica a tasa fija (por ejemplo, 30 FPS)
-  o tan rápido como pueda? ¿El sistema se mide en lazo abierto (se descartan
-  los fotogramas que no se procesan) o en lazo cerrado (el productor espera al
-  consumidor)? La respuesta cambia el significado de la tasa de procesamiento
-  y de la latencia de extremo a extremo.
-- **Política de descarte.** Si hay contrapresión (backpressure): descartar el
-  fotograma más antiguo o el más nuevo, bloquear al publicador o aumentar la
-  profundidad de historial. Debe ser la misma en todas las configuraciones y
-  coherente con la
-  QoS de P-02. Definir además si los fotogramas descartados entran en el
-  denominador de FPS y en las estadísticas de latencia; de lo contrario, dos
-  configuraciones pueden reportar el mismo FPS con cargas efectivas distintas.
-- **Calentamiento.** Número de fotogramas o duración; debe cubrir carga del
-  modelo, creación del contexto de GPU, primeras inferencias y estabilización
-  térmica.
-- **Duración y repeticiones.** Duración por ejecución (o número de
-  fotogramas), número de repeticiones por condición, y si se descartan
-  ejecuciones fallidas.
-- **Orden y aleatorización.** Orden de las nueve condiciones, bloques,
-  repeticiones y posible aleatorización para reducir deriva térmica o de
-  estado del sistema.
-- **Reinicio entre ejecuciones.** Detener todos los procesos, esperar
-  enfriamiento, verificar temperatura y carga, y volver a un estado basal
-  declarado.
-- **Registro de desviaciones.** Dónde y cómo se anotan los cambios respecto de
-  lo planificado.
+**Propuesta para el autor (no aplicada).** La decisión de medir con dos
+ventanas no figura en `docs/plan.md` §11, que describe una sola ejecución por
+condición. No se agregó una dimensión experimental —las condiciones siguen
+siendo las doce de `tab:experimental-matrix`—, pero cada corrida tiene ahora
+dos ventanas. La alternativa simple es una sola ventana saturada: cuesta la
+mitad del tiempo de campaña, pero la latencia quedaría medida solo sobre los
+fotogramas aceptados, con un recorte que depende de la tasa de cada
+configuración y que favorece a las más lentas, que perderían justamente la
+cola de su distribución de latencia. Si el autor
+prefiere esa vía, se elimina la ventana regulada de §3.7.1 y se ajustan §3.5.3
+y §3.7.3 en consecuencia.
 
-**Contexto y restricciones.** `docs/plan.md` §11 y §17 (fases 4 y 5) fijan la
-secuencia: calentamiento, ejecución, registro, repetición, reinicio. Los
-pilotos (P-12) pueden ajustar valores, pero no la lógica del procedimiento. La
-campaña final no debe agregar dimensiones nuevas.
+**Nota para P-07.** §3.7 le impone tres requisitos: registro por nodo de
+(índice de fotograma, instante de recepción, instante de despacho) para contar
+descartes y fotogramas en vuelo; marcas de frontera de cadena para la latencia;
+y un intervalo de muestreo del monitoreo que no deje huecos dentro de las
+ventanas.
 
-**Entregable.** §3.7 con una lista numerada y valores concretos; una hoja de
-ejecución o plantilla de metadatos para cada corrida; coherencia con P-05 y
-P-07.
-
-**Criterios de aceptación.** Otro laboratorio puede repetir el procedimiento
-sin decisiones implícitas; la política de descarte y el modo de conducción
-están declarados; los valores coinciden con el arnés de P-11; las desviaciones
-tienen un lugar donde registrarse.
-
-**Dependencias.** Requiere P-03 y P-05; se coordina con P-02 y P-07.
-Desbloquea P-11 y P-12.
-
-**Notas.** La cadena de ROS 2 puede procesar fotogramas distintos en
-paralelo aunque cada nodo sea secuencial. El procedimiento debe medir latencia
-y tasa de procesamiento por separado y no asumir que un aumento de latencia
-implica una caída de la tasa de procesamiento (o viceversa). Esa discusión
-pertenece a P-16.
-
-**Herencia de P-04 (2026-10-19).** §3.6.1 declara el modelo de concurrencia: la
-línea base es estrictamente secuencial y las configuraciones de ROS 2 solapan
-hasta $k$ fotogramas con $k$ nodos, sin barreras ni confirmaciones. El
-procedimiento no debe introducir sincronización que suprima ese solapamiento.
-Además, con `KEEP_LAST` de profundidad 1 la contrapresión se manifiesta como
-fotograma descartado y no como latencia acumulada, de modo que la política de
-descarte y el denominador de FPS tienen que declarar esa consecuencia y ser
-idénticos en A, B, C y D.
-
-**Criterio de validez (2026-10-19).** §3.3.1 y §3.5.3 remiten al procedimiento
-de §3.7 para comprobar, durante la campaña, que las detecciones de cada
-configuración coinciden con las de la línea base para la misma resolución.
-Ese paso todavía no existe en la lista de §3.7: P-06 debe agregarlo como
-criterio de validez de la corrida, con el registro de qué se compara y qué se
-hace si no coincide.
+**Nota para P-08.** Las diez repeticiones por condición se fijaron pensando en
+contrastes pareados por bloque. Si el análisis preespecificado necesita más
+potencia, se sube el número de bloques; no se cambia la lógica del
+procedimiento ni se reducen las repeticiones.
 
 ---
 
@@ -836,6 +887,16 @@ de fotograma y no por posición; y los registros deben permitir contar los
 fotogramas en vuelo por corrida, que es la cuantía de solapamiento que §3.6.1
 promete informar. Los mensajes que cruzan fronteras se declaran en
 `tab:operations`.
+
+**Herencia de P-06 (2026-10-19).** §3.7 fija tres requisitos que §3.8 debe
+satisfacer: (i) cada nodo registra, por fotograma, el índice de fotograma y
+los instantes de recepción y de despacho, porque de ahí salen los descartes
+por frontera y los fotogramas en vuelo; (ii) la latencia se calcula solo con
+la marca de entrada a la primera etapa y la de salida de la última, de modo
+que las marcas internas no entran en la comparación entre arquitecturas; y
+(iii) el monitoreo no puede dejar huecos dentro de las ventanas de 60 s y
+120 s, porque un hueco invalida la corrida. El registro por nodo también
+sostiene la verificación de equivalencia por índice de fotograma.
 
 ---
 
@@ -926,7 +987,8 @@ carga de trabajo y el mismo runtime que usarán los nodos de ROS 2.
   postprocesamiento que la implementación de ROS 2 (P-10). La única diferencia
   entre arquitecturas debe ser la frontera de comunicación, no el algoritmo.
 - Respetar el modelo, los pesos, la precisión y los umbrales de P-03.
-- Implementar el calentamiento, la duración y la política de descarte de P-06.
+- Implementar los calentamientos, las dos ventanas y la política de descarte de
+  §3.7 (P-06), con la hoja de ejecución de `docs/plantilla-corrida.md`.
 - Registrar por fotograma las marcas de tiempo y los resultados, con el
   esquema de P-07.
 - Exponer la configuración por línea de comandos o archivo (resolución,
@@ -1034,7 +1096,7 @@ automática y registrar los datos con metadatos suficientes para reproducirla.
   resolución, configuración y cualquier desviación.
 - Nombres de archivo y estructura de directorios estables; datos crudos
   inmutables; verificación de integridad si es posible.
-- Repeticiones y orden según P-06; posibilidad de reanudar una campaña
+- Repeticiones y orden según §3.7 (P-06); posibilidad de reanudar una campaña
   interrumpida.
 - Un solo comando por condición; nada de pasos manuales no documentados.
 

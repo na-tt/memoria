@@ -4,11 +4,12 @@
 % This chapter describes the planned experimental methodology. Citations
 % use the citation keys of the project Zotero library (exported to
 % references.bib). The platform, the software environment, the workload, the
-% chain of operations, the node mapping of every configuration and the
-% functional-equivalence test are closed (P-01 to P-04). Items that still
-% depend on pending decisions (resolutions, driving mode, warm-up, duration,
-% repetitions, instrumentation, statistical tests; P-05 to P-08) are marked
-% with visible \todo{...} placeholders; % TODO comments mark citation gaps.
+% chain of operations, the node mapping of every configuration, the
+% functional-equivalence test and the benchmark procedure are closed
+% (P-01 to P-06). Items that still depend on pending decisions (the
+% instrumentation of each metric and the statistical analysis; P-07 and P-08)
+% are marked with visible \todo{...} placeholders; % TODO comments mark
+% citation gaps.
 % No experimental results are reported in this chapter.
 
 \chapter{Metodología}
@@ -282,20 +283,27 @@ publicador a mantener un almacén de muestras, que consume memoria en un
 dispositivo de 8~GB.
 
 Se fija el historial en \texttt{KEEP\_LAST} con profundidad 1, de modo que
-cada extremo retiene el fotograma en vuelo y nada más: cada etapa procesa un
-fotograma a la vez, igual que la implementación monolítica secuencial.
-\texttt{KEEP\_ALL} dejaría la cola sin cota, con lo que la memoria crecería
-durante la corrida y las latencias incluirían el tiempo de espera en cola, que
-es un efecto del tamaño de la cola y no de la arquitectura. Una profundidad
-mayor que uno permitiría que dos o más fotogramas estuvieran a la vez en
-etapas distintas, es decir, introduciría solapamiento entre etapas: la tasa de
-procesamiento aumentaría entonces por la concurrencia añadida y no por el
-particionamiento, y la hipótesis H4 —más fronteras implican más sobrecosto—
-quedaría confundida, porque el número de fronteras y el grado de solapamiento
-cambiarían al mismo tiempo. La profundidad 1 acota además la memoria ocupada
-por las imágenes en vuelo: a resolución completa cada muestra ocupa varios
-megabytes, y el costo de serialización y de copia crece con el tamaño de la
-carga útil \cite{kronauer2021, luo2025}.
+cada frontera retiene a lo sumo una muestra pendiente: cada etapa procesa un
+fotograma a la vez y la muestra siguiente la espera, como mucho, la duración
+de una etapa. El solapamiento entre etapas no desaparece por eso ---una
+muestra pendiente por frontera es exactamente lo que permite que $k$
+fotogramas estén en vuelo, según la \Cref{sec:concurrency}---, pero queda
+acotado en uno por frontera y no depende de la diferencia entre la tasa de la
+fuente y la de la cadena. \texttt{KEEP\_ALL} dejaría la cola sin cota, con lo
+que la memoria crecería durante la corrida y las latencias incluirían el
+tiempo de espera en cola. Una profundidad mayor que uno acota la memoria pero
+no el encolamiento: el historial se llena en cuanto la oferta supera la
+capacidad, y desde entonces cada muestra procesada arrastra la espera de las
+$N-1$ que la preceden, del orden de $(N-1)/\lambda$. Con $N=10$ y los 30~FPS
+del clip, esa espera ronda los 300~ms, más de un orden de magnitud por encima
+del costo por fotograma que la comparación busca resolver; la latencia pasaría
+a medir el tamaño de la cola y no la arquitectura, y la hipótesis H4 —más
+fronteras implican más sobrecosto— quedaría confundida, porque la ocupación
+dependería del desajuste entre la oferta y la capacidad y no del
+particionamiento. La profundidad 1 acota además la memoria ocupada por las
+imágenes en vuelo: a resolución completa cada muestra ocupa varios megabytes,
+y el costo de serialización y de copia crece con el tamaño de la carga útil
+\cite{kronauer2021, luo2025}.
 
 Las políticas de plazo, vigencia y vivacidad se dejan en sus valores por
 omisión —plazo y vigencia infinitos, vivacidad automática— y se declara de
@@ -752,12 +760,13 @@ intermedio producen diferencias que la comparación de rendimiento no
 revelaría. La equivalencia se verifica por eso con una prueba explícita, y no
 se afirma como consecuencia del diseño.
 
-El procedimiento es el siguiente. La implementación monolítica produce una
-salida de referencia sobre un tramo fijo de la secuencia de entrada
-(\Cref{sec:input-sequence}), que se versiona junto con el artefacto
-experimental. Cada configuración de ROS~2 procesa el mismo tramo con la
-fuente conducida a una tasa inferior a la de la etapa más lenta, de modo que
-ninguna muestra se descarte por desbordamiento de la cola; que no hubo
+El procedimiento es el siguiente. La implementación monolítica produce, una
+vez por resolución, la salida de referencia de la totalidad del clip de la
+\Cref{sec:input-sequence}, que se versiona junto con el artefacto
+experimental. Cada configuración de ROS~2 procesa el mismo clip con la
+fuente conducida a una tasa inferior a la de la etapa más lenta ---la tasa
+regulada de la \Cref{sec:driving}---, de modo que ninguna muestra se
+descarte por desbordamiento de la cola; que no hubo
 descartes se comprueba contrastando la cantidad de fotogramas procesados por
 cada nodo con la cantidad de fotogramas de entrada. Las detecciones se
 comparan por índice de fotograma y no por posición en la secuencia, de modo
@@ -961,9 +970,10 @@ asociado al tamaño del mensaje. El análisis del
 configuraciones consecutivas, y no como una colección de comparaciones por
 pares entre las doce condiciones, precisamente para preservar esa lectura.
 
-Cada condición se repite múltiples veces, o se ejecuta por una duración fija
-suficientemente larga, para obtener mediciones estables.
-\todo{SPECIFY: number of repetitions and run duration per condition.}
+Cada condición se ejecuta diez veces, con dos ventanas de medición por
+corrida y un orden aleatorio que cambia entre repeticiones. La duración de
+cada ventana, la conducción de la fuente y el orden de las corridas se fijan
+en la \Cref{sec:procedure}.
 
 \subsection{Modelo de concurrencia}
 \label{sec:concurrency}
@@ -1007,44 +1017,332 @@ de conducción de la fuente se fijan en la \Cref{sec:procedure}.
 \section{Procedimiento de evaluación comparativa de rendimiento}
 \label{sec:procedure}
 
-Cada condición experimental sigue el mismo procedimiento:
+Cada condición experimental se ejecuta con el mismo procedimiento. El
+procedimiento fija dos cosas que determinan qué significan las cifras que se
+reportan: cómo se conduce la fuente de entrada y qué ocurre con los
+fotogramas que la cadena no alcanza a procesar. Ninguna de las dos puede
+variar entre condiciones, porque ambas alteran la carga efectiva y, con
+ella, la comparación. A continuación se fijan ambas decisiones, la secuencia
+de una corrida, los valores que la acompañan y el registro que la documenta.
 
-\begin{enumerate}
-  \item \textbf{Inicializar el sistema.} Iniciar la aplicación y todas las
-        herramientas de monitoreo.
-  \item \textbf{Calentamiento.} Descartar una cantidad inicial de
-        fotogramas o un período fijo de calentamiento para evitar medir el
-        comportamiento de inicio: los costos de la primera solicitud, como
-        la carga del modelo y la asignación de memoria, no reflejan la
-        operación en estado estacionario.
-        \todo{SPECIFY: warm-up duration or frame count.}
-  \item \textbf{Ejecutar la carga de trabajo.} Ejecutar la cadena de
-        procesamiento durante una duración fija o una cantidad fija de
-        fotogramas.
-        \todo{SPECIFY.}
-  \item \textbf{Registrar las mediciones.} Recopilar la latencia de extremo
-        a extremo, FPS, la utilización de CPU, RAM y GPU, y el consumo de
-        energía si se mide.
-  \item \textbf{Repetir.} Repetir el experimento lo suficiente para
-        caracterizar la variabilidad.
-  \item \textbf{Reiniciar.} Devolver el sistema al mismo estado de
-        referencia antes de la siguiente condición experimental.
-        \todo{SPECIFY: the reset procedure (e.g., stopping all nodes,
-        cooling interval).}
-\end{enumerate}
+\subsection{Modo de conducción de la fuente}
+\label{sec:driving}
+
+La fuente se conduce en \textbf{lazo abierto}: la adquisición entrega el
+siguiente fotograma sin comprobar si el anterior fue procesado. La
+alternativa ---que el productor espere al consumidor, con o sin confirmación
+explícita--- se descarta por tres razones. La primera es que suprimiría el
+solapamiento entre etapas que describe la \Cref{sec:concurrency}: el extremo
+de entrada de la cadena dejaría de adelantarse al resto y el número de
+fotogramas en vuelo, que es una de las cantidades que se informan, quedaría
+determinado por el procedimiento y no por la arquitectura. La segunda es que
+haría que la tasa de la fuente dependiera de la tasa de la cadena, es decir,
+que la condición experimental dependiera de la variable que se mide. La
+tercera es que agregaría un camino de retorno que ninguna de las
+arquitecturas comparadas tiene, y el resultado sería el tercer diseño que la
+\Cref{sec:concurrency} ya descarta.
+
+En lazo abierto, el exceso de oferta se resuelve en las fronteras, y la
+política que lo resuelve es la que fija el perfil de QoS de la
+\Cref{sec:qos}: con historial \texttt{KEEP\_LAST} de profundidad 1, cada
+frontera retiene a lo sumo una muestra pendiente, de modo que ningún
+fotograma espera detrás de más de un fotograma y el tiempo de espera en cola
+no crece con la duración de la corrida. La espera eventual se resuelve
+reemplazando o reteniendo, nunca acumulando; la \Cref{sec:discards} precisa
+en qué consiste cada caso y cómo se cuantifica.
+
+Un único régimen de oferta no sirve a las dos métricas principales. Si la
+fuente se conduce a una tasa fija baja ---por ejemplo, los 30~FPS del clip
+de la \Cref{sec:input-sequence}---, toda configuración más rápida que esa
+tasa queda truncada: su tasa de procesamiento mide la tasa impuesta y no su
+capacidad, y las diferencias entre A, B, C y D quedan ocultas por
+construcción justo donde el estudio quiere observarlas. Si, en cambio, la
+fuente se conduce sin ritmo o a una tasa superior a la de todas las
+condiciones, todas quedan saturadas y la tasa de procesamiento mide
+capacidad, pero los fotogramas que no se procesan no producen muestra de
+latencia: un fotograma que tardaría más que el intervalo con que llega el
+siguiente es reemplazado antes de terminar su recorrido, de modo que solo se
+observa la latencia de los fotogramas que sobreviven, y el recorte es mayor
+en las configuraciones más lentas.
+
+Por eso cada corrida tiene dos ventanas de medición sobre la misma condición
+experimental:
+
+\begin{itemize}
+  \item \textbf{Ventana saturada.} La fuente se conduce sin ritmo: la
+        adquisición entrega cada fotograma tan pronto como termina de
+        decodificarlo y redimensionarlo. La cadena queda limitada por su
+        propia capacidad y la ventana mide la tasa de procesamiento, los
+        descartes, la utilización de recursos y los fotogramas en vuelo.
+  \item \textbf{Ventana regulada.} La fuente entrega uno de cada $k$
+        fotogramas a la tasa fija $f_0 = 30/k$~FPS, inferior a la capacidad
+        de las doce condiciones. Ninguna frontera descarta, la secuencia
+        entregada es una decimación exacta de la del clip y la ventana mide
+        la latencia de extremo a extremo sobre todos los fotogramas, además
+        de sostener durante la campaña la verificación de equivalencia
+        funcional de la \Cref{sec:equivalence}.
+\end{itemize}
+
+Las dos ventanas no son dos condiciones ni dos experimentos: la condición
+experimental sigue siendo el par (arquitectura, resolución) de la
+\Cref{tab:experimental-matrix}, y las ventanas son dos regímenes de la misma
+corrida, con el mismo código, la misma configuración y la misma sesión. Cada
+corrida produce ambas, en el mismo orden y con la misma duración en las doce
+condiciones.
+
+El divisor $k$ se fija en la campaña piloto como el menor entero positivo
+tal que las doce condiciones completan la ventana regulada sin un solo
+descarte en ninguna de sus fronteras: si a 30~FPS ($k=1$) alguna condición
+descarta, se prueba $k=2$, y así sucesivamente. La regla deja una sola tasa
+regulada para las cuatro arquitecturas y las tres resoluciones ---dos tasas
+distintas serían dos cargas distintas--- y la decimación conserva lo que la
+comparación necesita: la misma secuencia de fotogramas, en el mismo orden y
+con los mismos índices, en las doce condiciones. El valor de $k$ se registra
+en el manifiesto de la campaña y se informa junto con los resultados.
+
+Una diferencia entre configuraciones que conviene declarar aquí: en la
+configuración A la adquisición comparte el hilo con el resto de la cadena y
+no puede adelantarse, de modo que la oferta es exactamente lo que el bucle
+completo alcanza a leer; en B, C y D la adquisición es un proceso aparte y,
+mientras la primera frontera tenga una muestra pendiente, puede decodificar
+fotogramas que después se descarten. Esa asimetría es una propiedad de las
+arquitecturas y no del procedimiento, y se conserva y se informa: un nodo de
+adquisición desacoplado que decodifica para nadie es parte del costo de
+particionar la cadena con profundidad 1, y su cuantía queda a la vista en
+los descartes por frontera y en la utilización de CPU de la
+\Cref{sec:metric-measurement}.
+
+\subsection{Política de descarte y denominadores}
+\label{sec:discards}
+
+La política de descarte es única, se aplica en todas las fronteras y en las
+cuatro configuraciones, y no es una decisión adicional del procedimiento
+sino la consecuencia del perfil de la \Cref{sec:qos}: cuando llega una
+muestra y otra sigue pendiente, la que esperaba se pierde y la nueva ocupa
+su lugar. Se descarta, entonces, el fotograma más antiguo y se conserva el
+más reciente, de modo que la cadena procesa el fotograma más nuevo
+disponible en lugar de uno atrasado. Las tres alternativas se descartan por
+razones distintas. Bloquear al publicador hasta que el consumidor tome la
+muestra ---la contrapresión clásica--- convertiría la tasa de la fuente en
+una consecuencia de la cadena: la oferta dejaría de ser una variable
+independiente y el sistema quedaría siempre en equilibrio con su propio
+consumo, de modo que la cifra medida no distinguiría una cadena que alcanza
+su capacidad de una que nunca fue exigida por encima de ella. Los descartes
+serían cero por construcción, el número de fotogramas en vuelo sería una
+constante del protocolo y quedaría fuera del registro el modo de fallo que
+interesa cuantificar, que es el de una cadena que no sostiene la tasa de la
+cámara; además, la configuración A no tiene frontera donde aplicar esa
+espera, de modo que las cuatro configuraciones dejarían de medirse con el
+mismo protocolo. Aumentar la profundidad de historial está descartado en la
+\Cref{sec:qos} por introducir un encolamiento cuya ocupación depende del
+desajuste entre la oferta y la capacidad. Descartar el fotograma más nuevo
+dejaría a la cadena procesando material obsoleto y agregaría una espera que
+el perfil fijado evita.
+
+El procedimiento no da por sentado cuál de las dos conductas ---reemplazar
+la muestra pendiente o retener al publicador--- implementa el middleware,
+sino que la verifica en la campaña piloto y la declara una vez para toda la
+campaña. Cualquiera de las dos respeta la propiedad que hace falta: a lo
+sumo una muestra pendiente por frontera y, por lo tanto, ninguna latencia
+que crezca con la duración de la corrida. La conducta observada no depende
+de la arquitectura sino del perfil de QoS, que es común, de modo que se
+aplica por igual a las doce condiciones.
+
+\paragraph{Fotogramas descartados y fotogramas en vuelo.} Cada nodo
+registra, por fotograma, el índice de fotograma y los instantes de recepción
+y de despacho; la \Cref{sec:metric-measurement} fija cómo se toman esas
+marcas y con qué herramienta. Con ese registro, los fotogramas descartados
+en una frontera son la diferencia entre los índices que publicó la etapa
+productora y los que recibió la consumidora, y se informan por frontera y
+por ventana. El mismo registro permite contar los fotogramas en vuelo que la
+\Cref{sec:concurrency} promete informar: en cada instante son los que
+entraron a la cadena y no han salido ni se han descartado, y se informan su
+máximo y su promedio por ventana. Ese conteo no interviene en la latencia,
+que se calcula solo con la marca de entrada a la primera etapa y la marca de
+salida de la última; las marcas internas sirven para contar y para auditar
+la equivalencia, no para comparar arquitecturas.
+
+\paragraph{Denominadores.} La tasa de procesamiento se calcula con la
+\Cref{eq:fps} sobre los fotogramas que completaron el recorrido: el
+numerador son los fotogramas cuya marca de salida cae dentro de la ventana y
+el denominador es la duración efectiva de la ventana, medida con el reloj
+monótono entre la marca de entrada del primer fotograma contabilizado y la
+marca de salida del último. Los fotogramas descartados no entran en el
+numerador, porque no completaron el recorrido, y tampoco en el denominador,
+que es tiempo y no cantidad de fotogramas ofrecidos. Se informan aparte,
+como tasa de oferta y como proporción de descarte por frontera, porque sin
+esas dos cifras no se distingue una cadena saturada por su propio cómputo de
+una cadena limitada por la fuente: dos configuraciones pueden completar el
+mismo número de fotogramas por segundo con ofertas muy distintas.
+
+En las estadísticas de latencia, un fotograma descartado no produce muestra,
+porque no hay instante de salida que medir. La latencia que se compara entre
+configuraciones es, por eso, la de la ventana regulada, donde no se descarta
+ningún fotograma y la distribución no queda recortada. Las latencias por
+fotograma de la ventana saturada se registran igualmente, pero son
+condicionales a que el fotograma haya sido aceptado y su recorte depende de
+la tasa de cada configuración, de modo que se conservan como material de
+diagnóstico y no se comparan entre sí.
+
+\subsection{Secuencia de la corrida}
+\label{sec:run-sequence}
 
 A lo largo de las mediciones, el sistema se mantiene en un estado
 controlado: se aplica el modo de energía fijo y se minimiza la carga en
 segundo plano. Esto sigue la práctica de la literatura de medición de
-ROS~2, donde el comportamiento adaptativo del sistema operativo---el
+ROS~2, donde el comportamiento adaptativo del sistema operativo ---el
 escalado de frecuencia de la CPU y los estados de inactividad--- se
 neutraliza explícitamente porque agrega ruido a las mediciones de latencia
-\cite{kronauer2021}.
+\cite{kronauer2021}, y la de la caracterización de la plataforma, donde el
+modo de energía y la temperatura de partida cambian el rendimiento y el
+consumo medidos \cite{tang2026}. Cada corrida procede así:
+
+\begin{enumerate}
+  \item \textbf{Verificar el estado inicial.} Comprobar el modo de energía
+        y los gobernadores de frecuencia de la \Cref{sec:qos}; comprobar que
+        no quede ningún proceso de la cadena ni de corridas anteriores, el
+        SHA-256 del clip, la versión de los pesos del modelo, y que la
+        temperatura del SoC esté por debajo del umbral de reposo fijado en
+        la campaña piloto; registrar la temperatura ambiente e iniciar el
+        monitoreo con el intervalo de muestreo de la
+        \Cref{sec:metric-measurement}.
+  \item \textbf{Calentamiento de la ventana regulada.} Ejecutar la cadena a
+        la tasa $f_0$ durante al menos 120~s, prolongando el calentamiento
+        en bloques de 60~s hasta que la temperatura del SoC varíe menos de
+        0,5~°C entre el inicio y el final del último bloque, con un máximo
+        de 300~s. El calentamiento cubre la carga del modelo, la creación
+        del contexto de computación, las primeras inferencias y el ascenso
+        térmico, y sus fotogramas no se contabilizan.
+  \item \textbf{Ventana regulada.} Ejecutar 60~s a la tasa $f_0$. Se
+        registran las latencias por fotograma y se contrasta por índice
+        cada fotograma procesado con la salida de referencia de la
+        \Cref{sec:equivalence}.
+  \item \textbf{Calentamiento de la ventana saturada.} Ejecutar la cadena
+        sin ritmo con el mismo criterio del paso anterior. Cada ventana se
+        mide así en el estado estacionario de su propia carga, al que se
+        llega calentando desde la temperatura de reposo y no enfriando
+        desde la carga precedente.
+  \item \textbf{Ventana saturada.} Ejecutar 120~s sin ritmo. Se registran la
+        tasa de procesamiento, la tasa de oferta, los descartes por frontera,
+        los fotogramas en vuelo y la utilización de CPU, memoria y GPU.
+  \item \textbf{Cerrar el registro.} Detener el monitoreo, volcar los
+        registros y completar la hoja de ejecución de la
+        \Cref{sec:run-sheet}.
+  \item \textbf{Verificar la validez.} La corrida es válida si y solo si se
+        cumplen estas condiciones: (i) todos los fotogramas procesados
+        coinciden con la salida de referencia dentro de la tolerancia de la
+        \Cref{sec:equivalence}; (ii) la ventana regulada no registra
+        descartes en ninguna frontera; (iii) la temperatura del SoC no varía
+        más de 0,5~°C dentro de cada ventana y ninguna ventana entra en
+        limitación térmica; (iv) el monitoreo no tiene interrupciones ni
+        muestras faltantes dentro de las ventanas; (v) ambas ventanas
+        completaron su duración; y (vi) en la ventana saturada la tasa de
+        oferta ---los fotogramas que despachó la etapa de adquisición---
+        excede con holgura la tasa de completación, de modo que la fuente no
+        quedó estrangulada por la espera en las fronteras. Una corrida que no
+        cumple alguna de estas
+        condiciones no se analiza: se repite al final del bloque, con su
+        propio identificador y su entrada en el registro de desviaciones.
+  \item \textbf{Reiniciar.} Detener todos los procesos de la cadena y el
+        monitoreo, comprobar que no quede ninguno activo y que la GPU no
+        tenga trabajo en curso, y dejar el equipo inactivo hasta que la
+        temperatura del SoC vuelva a estar por debajo del umbral de reposo,
+        con un máximo de 300~s. El enfriamiento usa el ventilador del kit,
+        sin refrigeración externa ni velocidad modificada
+        (\Cref{sec:platform}), y no se acelera artificialmente; si el umbral
+        tarda más en alcanzarse, se espera igualmente y la espera se anota
+        en el registro de desviaciones.
+  \item \textbf{Repetir y ordenar.} Cada condición se ejecuta diez veces,
+        una por bloque. Cada bloque contiene una corrida de cada una de las
+        doce condiciones en orden aleatorio, permutado con una semilla que se
+        registra y se versiona con el artefacto. La corrida es la unidad de
+        repetición, porque lo que varía entre corridas ---la temperatura de
+        partida, el estado del sistema, la disposición de la memoria--- no se
+        conserva entre los fotogramas de una misma corrida. La aleatorización
+        dentro del bloque impide que una deriva del equipo se confunda con
+        una condición o con una posición fija en la secuencia.
+  \item \textbf{Registrar las desviaciones.} Anotar en el registro de
+        desviaciones toda diferencia con lo aquí previsto
+        (\Cref{sec:run-sheet}).
+\end{enumerate}
+
+La campaña final comprende, entonces, 120 corridas ---doce condiciones por
+diez bloques--- de entre siete y once minutos cada una, según el tiempo que
+exijan los calentamientos y el enfriamiento, esto es, del orden de dieciocho
+horas de máquina, sin contar los experimentos piloto.
 
 Los experimentos piloto preceden a los experimentos finales con el fin de
 identificar problemas de medición, cuellos de botella inesperados,
 supuestos incorrectos y errores de configuración. El propósito de las
 ejecuciones piloto es fijar la metodología, no generar resultados finales.
+Los pilotos fijan el valor de $k$ ---y con él la tasa regulada---, la
+conducta efectiva del middleware frente a la muestra pendiente, la
+evidencia de que la meseta térmica se alcanza dentro del máximo previsto y
+el umbral de reposo, que es la temperatura del SoC a la que se da por
+terminado el enfriamiento entre corridas. Los pilotos ajustan esos valores,
+pero no la lógica del procedimiento, la política de descarte ni los
+denominadores.
+
+Los pilotos incluyen además una verificación de sensibilidad al perfil de
+QoS: en una condición central se ejecuta la ventana saturada con la
+profundidad de historial fijada y con profundidad diez, que es la del perfil
+por omisión de ROS~2, con dos repeticiones de cada una. La comparación
+contrasta dos afirmaciones del diseño que no se miden en la campaña: que con
+profundidad uno la oferta no queda estrangulada y los descartes se
+concentran en las fronteras, y que con profundidad diez el historial se llena
+y la latencia pasa a estar dominada por la espera en cola. El resultado se
+informa como nota en el capítulo de resultados. No modifica la campaña: el
+perfil de la \Cref{sec:qos} no se compara, y si la verificación contradice lo
+previsto, la contradicción se documenta en lugar de ajustarse el perfil.
+
+\subsection{Hoja de ejecución y registro de desviaciones}
+\label{sec:run-sheet}
+
+Cada corrida produce una hoja de ejecución con los campos de la
+\Cref{tab:run-manifest}, que se guarda junto con los registros por fotograma
+y se versiona con el artefacto experimental. La hoja es la misma para las
+cuatro arquitecturas, de modo que una corrida se pueda contrastar con otra
+sin consultar el código: los campos que no se aplican a una configuración
+---por ejemplo, los descartes por frontera en A, que no tiene fronteras---
+quedan vacíos o en cero.
+
+\begin{table}[htbp]
+  \centering
+  \caption[Campos de la hoja de ejecución]{Campos de la hoja de ejecución de
+  cada corrida. La hoja, junto con los registros por fotograma y el registro
+  de desviaciones, se versiona con el artefacto experimental.}
+  \label{tab:run-manifest}
+  \begin{tabular}{@{}L{0.19\linewidth}L{0.73\linewidth}@{}}
+    \toprule
+    \textbf{Grupo} & \textbf{Contenido} \\
+    \midrule
+    Identificación & identificador de la corrida; fecha y hora;
+      arquitectura y resolución; bloque; posición dentro del bloque; semilla
+      del orden \\
+    Procedencia & versión del artefacto experimental; SHA-256 del clip;
+      versión y hash de los pesos del modelo \\
+    Ventanas & tasa de la fuente; instante y duración efectiva de cada
+      ventana; fotogramas ofrecidos; fotogramas completados; descartes por
+      frontera; fotogramas en vuelo, máximo y promedio \\
+    Estado & modo de energía y gobernadores verificados; temperatura del SoC
+      al inicio y al cierre de cada ventana; temperatura ambiente;
+      frecuencias efectivas medias de CPU, GPU y memoria \\
+    Validez & fotogramas comparados en la verificación de equivalencia y
+      discrepancias; variación de la temperatura dentro de cada ventana;
+      integridad del monitoreo; resultado (válida, repetida o descartada) \\
+    Archivos & nombres de los archivos de datos por fotograma y de resumen;
+      entradas del registro de desviaciones asociadas \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Las diferencias con lo previsto se anotan, no se corrigen en silencio. El
+registro de desviaciones es una lista versionada con una entrada por evento,
+que consigna la fecha y el identificador de la corrida, la condición, lo que
+se había previsto, lo que ocurrió, la causa cuando se conoce y la decisión
+adoptada ---repetir la corrida, declararla inválida o continuar---. Las
+desviaciones se informan en la \Cref{sec:reproducibility}: la memoria no
+presenta resultados cuya desviación no esté declarada.
 
 \section{Medición de las métricas de rendimiento}
 \label{sec:metric-measurement}
@@ -1079,6 +1377,10 @@ intervalo de medición en estado estacionario, tras eliminar el calentamiento:
   transcurrido}}
   \label{eq:fps}
 \end{equation}
+
+Los fotogramas procesados que entran en el numerador son los que completaron
+el recorrido de la cadena y produjeron su salida; los descartes y su efecto
+sobre los denominadores se fijan en la \Cref{sec:discards}.
 
 \subsection{Utilización de CPU}
 
@@ -1209,6 +1511,8 @@ comparativa de rendimiento robótica estandarizada y reproducible
   \item Duración del benchmark
   \item Cantidad de repeticiones
   \item Procedimiento de calentamiento
+  \item Modo de conducción de la fuente, tasa regulada y tasa de oferta
+  \item Hoja de ejecución de cada corrida y registro de desviaciones
 \end{itemize}
 
 Registrar la configuración completa de software y hardware no es meramente
