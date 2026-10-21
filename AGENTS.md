@@ -33,6 +33,10 @@ the thesis PDF and must never be included in the build:
 - `docs/instrumentacion.md` — instrumentation spec behind §3.8: clock and mark
   pattern, `tegrastats`/`sysfs`/cgroup sampling, SQLite schema, and the checks
   to run on the device during the pilot.
+- `docs/analisis-estadistico-explicado.md` — study aid for §3.9: the concepts
+  (paired design, pseudoreplication, *p* value, Shapiro–Wilk, Wilcoxon, Holm,
+  power, log scale), every equation of the section with a worked arithmetic
+  example, and an FAQ. Pedagogical support only: the normative text is §3.9.
 - `docs/scripts/zipfetch.py` — extracts individual members of a remote
   (possibly split) `.zip` over HTTP `Range`. Used to pull single BDD100K clips
   from the ~1.97 TB video package without downloading it; the exact command
