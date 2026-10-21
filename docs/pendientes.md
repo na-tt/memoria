@@ -1044,31 +1044,45 @@ capítulo.
   usa el **tiempo de CPU de la cadena** (cgroup) y no el porcentaje de
   `tegrastats`, como P-07 ya había registrado, y se acompaña del tiempo de CPU
   por fotograma, que separa el costo unitario de la tasa alcanzada.
-- **Contrastes.** Nueve incrementos (3 fronteras × 3 resoluciones) + tres
-  tendencias con coeficientes `(-3,-1,1,3)` + tres interacciones con
-  `(-1,0,1)`. El contraste de tendencia estima el factor multiplicativo por
-  frontera agregada (`e^T`); la interacción, el cambio del sobrecosto por
-  cuadruplicación del área (`e^{I/2}`). No se informan las 66 comparaciones por
-  pares: A→C y A→D quedan descriptivos porque no separan el costo fijo de una
-  frontera del costo de transportar el mensaje intermedio.
+- **Contrastes.** Nueve incrementos entre configuraciones consecutivas
+  (3 pasos × 3 resoluciones) + tres tendencias con coeficientes
+  `(-5,-3,1,7)` y divisor 42 + tres interacciones con `(-1,0,1)`. Los
+  coeficientes de la tendencia son los de un contraste lineal sobre el número
+  real de fronteras de cada configuración (0, 1, 3 y 6), de modo que sus
+  incrementos (2, 4, 6) son el doble de las fronteras que agrega cada paso y
+  `e^T` es el factor multiplicativo por frontera agregada; la interacción
+  estima el cambio del sobrecosto por cuadruplicación del área (`e^{I/2}`). No
+  se informan las 66 comparaciones por pares: A→C y A→D quedan descriptivos
+  porque no separan el costo fijo de una frontera del costo de transportar el
+  mensaje intermedio.
 - **Pruebas y supuestos.** `t` pareada bilateral; Shapiro–Wilk sobre las diez
   diferencias con nivel 0,10 (y no 0,05, porque con n = 10 tiene poca
   potencia); si rechaza, Wilcoxon de rangos con signo bilateral con p exacto;
-  diferencias nulas descartadas y contadas; con menos de seis no nulas, sin
-  prueba. Se descartan por escrito Mann–Whitney y ANOVA/Kruskal–Wallis
+  diferencias nulas descartadas y contadas; con menos de nueve no nulas (diez
+  en la familia de dieciocho) no se aplica prueba, porque por debajo de ese
+  número el p mínimo alcanzable (`2/2^n`) queda por encima del umbral de Holm.
+  Se descartan por escrito Mann–Whitney y ANOVA/Kruskal–Wallis
   (suponen independencia entre condiciones, que el diseño pareado no tiene) y
   el modelo mixto. Un bloque incompleto no se recupera con una prueba
   independiente: se analiza por bloques completos.
 - **Efecto e intervalos.** Se informan `rho` con IC 95 %, la diferencia
-  absoluta en ms o µs, `d_z`, el estimador de Hodges–Lehmann (rama no
-  paramétrica) y los diez valores por corrida. IC por `t` con 9 gl o por
-  `bootstrap` BCa con 10 000 réplicas y semilla registrada.
+  absoluta en ms o µs, `d_z`, el desplazamiento de Hodges–Lehmann con su
+  intervalo (rama no paramétrica) y los diez valores por corrida. IC por `t`
+  con 9 gl o por inversión de la prueba de rangos con signo (intervalo de
+  Walsh, consistente con el p exacto). El `bootstrap` BCa con 10 000 réplicas
+  queda solo para los intervalos de los percentiles, que son descriptivos.
 - **Comparaciones múltiples.** Cinco familias —F1 latencia (9), F2 tasa (9),
   F3 CPU y memoria (18), F4 tendencia (3), F5 interacción (3): 42 pruebas— y
   Holm dentro de cada familia. Sin corrección entre familias, por contenido y
   por cantidad: `0,05/42 ≈ 0,0012` queda por debajo del mínimo p alcanzable
   del Wilcoxon exacto con diez pares (`0,002`), de modo que una corrección
-  global dejaría ese contraste sin capacidad de rechazar nunca. Se descarta
+  global dejaría ese contraste sin capacidad de rechazar nunca. La holgura es
+  distinta por familia y se declara: en las de nueve pruebas el único p
+  por debajo de su umbral (0,0056) son el extremo (0,002) y el siguiente
+  (0,0039); en F3, con umbral 0,0028, solo el extremo, es decir, diez
+  diferencias con el mismo signo. Se declara también el coste del diseño: con
+  cinco familias al 5 %, la probabilidad de al menos un falso positivo global
+  llega a `1-0,95^5 ≈ 0,23`. Se descarta
   FDR (es para cribar muchas hipótesis).
 - **Percentiles.** P95 por corrida (mínimo 100 fotogramas) y valor de la
   condición = mediana de las diez, con IC; P99 exige 1000 fotogramas por
@@ -1076,7 +1090,10 @@ capítulo.
   descriptivo y sin comparación inferencial.
 - **Hipótesis y criterios.** Regla de cuatro categorías —sostenida,
   parcialmente sostenida, contradicha, no resuelta— con el patrón de
-  contrastes publicado junto a la etiqueta. H2 («igual o mayor») no se
+  contrastes publicado junto a la etiqueta. La etiqueta es más exigente cuanto
+  más grande la familia (H3, 18 pruebas, contra 9 en H1 y H2) y se advierte
+  que H3 puede quedar en «parcialmente sostenida» con signos enteramente
+  favorables. H2 («igual o mayor») no se
   convierte en una declaración de equivalencia, porque no hay margen fijado
   de antemano; H3 se contrasta sobre CPU y memoria, y la GPU queda como
   descriptiva.
@@ -1136,6 +1153,38 @@ limpiar el título de `wasserstein2016` (traía etiquetas HTML), fijar
 
 **Notas.** El plan no agrega ninguna dimensión experimental: los 15 contrastes
 se calculan sobre las 120 corridas de §3.7.
+
+**Corrección posterior (2026-10-20, revisión aritmética de §3.9).** Cuatro
+correcciones sobre lo registrado arriba, ya aplicadas en
+`sections/capitulo-3.tex`:
+
+1. `eq:trend` estaba mal dos veces. Los coeficientes `(-3,-1,1,3)` suponen
+   niveles equiespaciados, pero las configuraciones tienen 0, 1, 3 y 6
+   fronteras (pasos de +1, +2 y +3); y el divisor `1/3` devolvía
+   `e^T ≈ (factor por frontera)^{6,67}`. Quedó en `(-5,-3,1,7)` con divisor 42
+   ---la pendiente de mínimos cuadrados de `ln Y` sobre el número de
+   fronteras---, con la verificación de que sus incrementos (2, 4, 6) son el
+   doble de las fronteras agregadas. Se agregó además que la lectura «costo
+   por frontera» supone linealidad, que el diseño espera que B→C y C→D
+   incumplan en sentidos opuestos.
+2. La regla de diferencias no nulas («menos de seis, sin prueba») dejaba el
+   umbral inalcanzable: con n = 6 el p mínimo exacto es 0,031. Pasó a nueve
+   (diez en F3), con la razón escrita, y se agregó que en F3 la rama no
+   paramétrica solo rechaza si las diez diferencias tienen el mismo signo
+   (los dos únicos p posibles bajo el umbral son 0,002 y 0,0039; el de F3 es
+   0,0028).
+3. El IC de la rama no paramétrica pasó de `bootstrap` BCa a la inversión de
+   la prueba de rangos con signo (intervalo de Walsh / Hodges–Lehmann), para
+   que no pueda discrepar del p exacto. El BCa queda solo para los intervalos
+   de los percentiles, que son descriptivos.
+4. Se agregaron dos cifras que faltaban: el error global de la campaña
+   (`1-0,95^5 ≈ 0,23` con cinco familias al 5 %) y la advertencia de que
+   «sostenida» exige en H3 dieciocho rechazos contra nueve en H1 y H2.
+
+También se corrigió §3.5: el paso C→D agrega tres fronteras, de modo que
+estima el costo fijo de tres, no el de una. `tab:analysis-families` no cambió
+en sus recuentos; la fila de F5 dice ahora «una por incremento» en lugar de
+«una por frontera».
 
 ---
 

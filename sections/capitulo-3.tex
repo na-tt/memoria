@@ -962,8 +962,9 @@ menos de 0,2~MB, mientras que el paso de B a C agrega dos fronteras y un
 mensaje de 1,23~MB. Por eso el diseño permite contrastes que no se confunden:
 el incremento B$\rightarrow$C incorpora el transporte de una imagen
 grande, y el incremento C$\rightarrow$D casi no incorpora transporte, de modo
-que éste último estima el costo fijo de una frontera y aquél, el costo
-asociado al tamaño del mensaje. El análisis del
+que éste último estima el costo fijo de tres fronteras ---o el de una,
+dividido por tres--- y aquél, el costo asociado al tamaño del mensaje. El
+análisis del
 \Cref{sec:analysis} trata las comparaciones como contrastes entre
 configuraciones consecutivas, y no como una colección de comparaciones por
 pares entre las doce condiciones, precisamente para preservar esa lectura.
@@ -1918,19 +1919,37 @@ cuando sea visible en la cifra publicada.
 
 El cuarto contraste resume el efecto del particionamiento como una tendencia y
 no como tres escalones independientes. Las cuatro configuraciones agregan
-fronteras sin reordenar la cadena (\Cref{sec:configurations}), de modo que
-admiten un contraste lineal con coeficientes espaciados por el número de
-fronteras:
+fronteras sin reordenar la cadena (\Cref{sec:configurations}), pero no
+agregan la misma cantidad: A no tiene ninguna, B una, C tres y D seis, de modo
+que los pasos consecutivos suman una, dos y tres fronteras. Por eso el
+contraste lineal no puede usar coeficientes equiespaciados. Los que
+corresponden al número de fronteras $n=(0,1,3,6)$ son proporcionales a
+$n_k-\bar n$, esto es $-5,-3,1,7$, cuyos incrementos sucesivos son 2, 4 y 6,
+es decir, el doble de las fronteras que agrega cada paso. Con esos
+coeficientes enteros, el divisor que devuelve el efecto por frontera es
+$\tfrac{1}{2}\sum_k c_k^2 = 42$:
 \begin{equation}
-  T^{(r)}_{b} = \frac{1}{3}\sum_{k} c_k \ln Y^{(r)}_{k,b},
-  \qquad c = (-3,-1,1,3),
+  T^{(r)}_{b} = \frac{1}{42}\sum_{k} c_k \ln Y^{(r)}_{k,b},
+  \qquad c = (-5,-3,1,7),
   \qquad T = \mathrm{E}\left[T_b\right],
   \label{eq:trend}
 \end{equation}
-tal que $e^{T}$ es el factor multiplicativo medio que agrega cada frontera de
-comunicación adicional; un valor mayor que uno es la forma cuantitativa de la
-predicción H4. El mismo contraste se estima por resolución, lo que permite
-examinar si la tendencia es la misma en las tres.
+con lo que $T$ es la pendiente de mínimos cuadrados de $\ln Y$ sobre el
+número de fronteras, y $e^{T}$ es el factor multiplicativo que agrega cada
+frontera de comunicación adicional. Un valor mayor que uno es la forma
+cuantitativa de la predicción H4. El mismo contraste se estima por resolución,
+lo que permite examinar si la tendencia es la misma en las tres.
+
+La lectura de $e^{T}$ como costo por frontera supone que ese costo no depende
+de cuál frontera se agregue, y el diseño espera lo contrario: el paso
+B$\to$C agrega dos fronteras que transportan una imagen grande y el paso
+C$\to$D tres que transportan decenas de KB
+(\Cref{tab:partitioning-payloads}). La tendencia resume los cuatro niveles en
+un solo número y no sustituye a los incrementos consecutivos: la desviación
+respecto de la recta es lo que miden los contrastes de la
+\Cref{eq:contrast}, y el patrón de esos incrementos se informa junto con la
+tendencia, de modo que la desviación queda a la vista en lugar de quedar
+promediada.
 
 El quinto contraste es una interacción entre el particionamiento y la
 resolución, que es la forma de responder si el sobrecosto depende del tamaño
@@ -1947,9 +1966,10 @@ recorre dos pasos de un factor cuatro, de modo que $e^{I/2}$ es el factor en
 que se multiplica la razón entre configuraciones por cada cuadruplicación del
 área del fotograma.
 
-Los contrastes quedan así en nueve incrementos entre fronteras ---tres
-fronteras por tres resoluciones---, tres tendencias y tres interacciones. No
-son las 66 comparaciones por pares que admiten las doce condiciones, y las
+Los contrastes quedan así en nueve incrementos entre configuraciones
+consecutivas ---tres pasos por tres resoluciones---, tres tendencias y tres
+interacciones. No son las 66 comparaciones por pares que admiten las doce
+condiciones, y las
 restantes no se informan como si formaran parte del plan: los contrastes entre
 A y C o entre A y D, que algunos lectores esperarán, se informan como
 descriptivos, porque dos fronteras a la vez no separan el costo fijo de una
@@ -1969,9 +1989,14 @@ rechaza ($p>0{,}10$), se usa la prueba \emph{t} pareada bilateral; si rechaza,
 se usa la prueba de rangos con signo de Wilcoxon \cite{wilcoxon1945},
 bilateral, con valor $p$ exacto. En la prueba de Wilcoxon las diferencias nulas
 se descartan y se
-informa cuántas hubo; si quedan menos de seis diferencias no nulas, no se
-aplica prueba y el contraste se informa solo con su intervalo y con el
-recuento de signos. La combinación ---prueba no paramétrica pareada con umbral
+informa cuántas hubo. Si quedan menos diferencias no nulas que las que el
+umbral corregido exige, no se aplica prueba: con $n$ diferencias no nulas el
+menor valor $p$ bilateral alcanzable es $2/2^{n}$, de modo que por debajo de
+nueve el contraste no puede rechazar con el umbral de una familia de nueve
+pruebas ($0{,}0056$) y por debajo de diez, con el de la familia de dieciocho
+($0{,}0028$). En esos casos el contraste se informa solo con su intervalo y
+con el recuento de signos, y se declara que el rechazo era inalcanzable por
+construcción. La combinación ---prueba no paramétrica pareada con umbral
 corregido por comparaciones múltiples--- es la que la literatura de comparación
 de algoritmos sobre múltiples conjuntos de datos recomienda por su robustez
 frente a la no normalidad y a la multiplicidad \cite{demsar2006}.
@@ -1981,7 +2006,14 @@ alcanzar es $2/2^{10}\approx 0{,}002$, que sigue por debajo del umbral más
 exigente que introduce la corrección de la \Cref{sec:analysis-multiplicity}
 ($0{,}0028$ en la familia de dieciocho pruebas). El valor extremo de la prueba
 no paramétrica queda así alcanzable, lo que no ocurriría con una corrección
-sobre el total de las pruebas.
+sobre el total de las pruebas. La holgura, sin embargo, no es la misma en las
+dos familias. En las de nueve pruebas el umbral es $0{,}0056$ y quedan por
+debajo tanto el desenlace más extremo ($0{,}002$) como el siguiente
+($0{,}0039$). En la de dieciocho el umbral de $0{,}0028$ queda entre ambos, de
+modo que en la rama no paramétrica solo rechaza el desenlace en que las diez
+diferencias tienen el mismo signo. Se informa como propiedad de la regla y no
+se corrige cambiando la prueba: en esa familia, un efecto que no produzca esa
+consistencia de signos no alcanza la evidencia que el umbral exige.
 
 Quedan descartadas, por escrito, las alternativas que suelen elegirse después
 de ver los datos. La prueba de Mann--Whitney y el análisis de varianza de un
@@ -2018,12 +2050,16 @@ la de Wilcoxon; y los
 diez valores por corrida, que se publican con la tabla de contraste para que
 el lector pueda reconstruir el cálculo. El intervalo se obtiene de la
 distribución \emph{t} con nueve grados de libertad en el caso paramétrico, y
-por \emph{bootstrap} con corrección de sesgo y aceleración \cite{efron1994}
-sobre los diez pares en el caso no paramétrico, con 10\,000 réplicas y una
-semilla que se
-registra con el artefacto. En ambos casos el intervalo se informa en la escala
-del cociente, tras exponenciar, de modo que se lee directamente como «de tanto
-a tanto por ciento más de latencia».
+por inversión de la prueba de rangos con signo en el caso no paramétrico, es
+decir, a partir del mismo estadístico que produce el valor $p$. Esa
+construcción ---el intervalo de Hodges--Lehmann de Walsh--- tiene la propiedad
+de que sus límites son los desplazamientos que la prueba no rechazaría, de
+modo que intervalo y valor $p$ no pueden discrepar. Se prefiere al
+\emph{bootstrap} porque con diez pares un intervalo remuestreado y una prueba
+exacta son dos procedimientos distintos que pueden dar señales opuestas, y el
+lector no tendría cómo decidir a cuál atenerse. En ambos casos el intervalo se
+informa en la escala del cociente, tras exponenciar, de modo que se lee
+directamente como «de tanto a tanto por ciento más de latencia».
 
 El valor $p$ no decide la magnitud \cite{wasserstein2016}, y por eso se
 informan las dos cosas. Una
@@ -2036,7 +2072,9 @@ de resultados.
 Los percentiles se calculan por corrida, sobre los fotogramas de la ventana,
 con interpolación lineal, igual que en la \Cref{sec:metric-measurement}. El
 valor de una condición es la mediana de los diez valores de sus corridas, con
-su intervalo por \emph{bootstrap}, y se informa junto con el percentil
+su intervalo por \emph{bootstrap} con corrección de sesgo y aceleración
+\cite{efron1994}, con 10\,000 réplicas y una semilla que se registra con el
+artefacto, y se informa junto con el percentil
 calculado sobre los fotogramas de todas las corridas de la condición, que es
 descriptivo. P95 se informa en cuanto la corrida tenga al menos 100 fotogramas
 en la ventana. P99 exige 1\,000: si la corrida no los alcanza, el percentil no
@@ -2080,7 +2118,7 @@ familias, la métrica de cada una y la dirección que las hipótesis predicen.
     H4 & Latencia de extremo a extremo, en escala logarítmica & Regulada &
     F4 & 3 (una por resolución) & $e^{T}>1$, factor por frontera \\
     --- & Cambio del sobrecosto con la resolución & Regulada & F5 &
-    3 (una por frontera) & Sin dirección predicha \\
+    3 (una por incremento) & Sin dirección predicha \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -2097,6 +2135,14 @@ Wilcoxon alcanza con diez pares ($0{,}002$), de modo que un contraste podría
 tener un efecto enorme y no alcanzaría nunca la significancia. Una corrección
 que hace inalcanzable el rechazo no controla el error: deja la prueba sin
 capacidad de decidir.
+
+La contrapartida se declara con su cifra: con cinco familias al 5~\% y todas
+las hipótesis nulas ciertas, la probabilidad de al menos un falso positivo en
+la campaña llega a $1-0{,}95^{5}\approx0{,}23$. Se acepta ese intercambio
+porque un error de esa clase, en un contraste que se interpreta por separado y
+se informa con su intervalo, es preferible a una corrección que haría
+inalcanzable el rechazo de los contrastes que más importan, y el capítulo de
+resultados lo consigna al informar las familias.
 
 Se informa, por cada contraste, el valor $p$ sin ajustar y el ajustado, junto
 con el tamaño de su familia, para que la corrección sea auditable. No se usa
@@ -2122,6 +2168,15 @@ signo contrario al predicho; y \emph{no resuelta} en los demás casos. Se
 informa el patrón completo de contrastes y no solo la etiqueta, porque la
 etiqueta sin el patrón oculta justamente lo que interesa, que es en qué
 resolución o en qué frontera la predicción se cumple y en cuál no.
+
+La etiqueta es más exigente cuanto más grande es la familia, y conviene
+declararlo: H1 y H2 se deciden con nueve pruebas y H3 con dieciocho, de modo
+que «sostenida» pide en H3 el doble de rechazos consistentes que en las otras
+dos. No se compensa con un umbral distinto por hipótesis, porque eso
+introduciría una decisión adicional sin fundamento en los datos; se advierte,
+en cambio, que H3 puede quedar en «parcialmente sostenida» con un patrón de
+signos enteramente favorable, y que en ese caso lo que se interpreta es el
+patrón y no la etiqueta.
 
 Dos precisiones sobre esa regla. La primera es que H2 está enunciada como
 «igual o mayor», y una igualdad no se demuestra por ausencia de diferencia
@@ -2266,8 +2321,9 @@ para que la programación no reintroduzca decisiones que el método ya tomó:
 
 El script verifica además las precondiciones que el plan declara: si un
 contraste no alcanza el número mínimo de bloques o de diferencias no nulas,
-emite «no estimable» en lugar de un valor $p$. La semilla del \emph{bootstrap},
-el orden de las filas y el formato de las cifras son fijos, de modo que dos
+emite «no estimable» en lugar de un valor $p$. La semilla del \emph{bootstrap}
+de los percentiles, el orden de las filas y el formato de las cifras son fijos,
+de modo que dos
 ejecuciones sobre los mismos datos producen el mismo artefacto, y las cifras se
 formatean con coma decimal y con las unidades de la
 \Cref{tab:metric-instrumentation}.
